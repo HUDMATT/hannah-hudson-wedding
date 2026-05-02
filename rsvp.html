@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="RSVP for Hudson and Hannah's wedding.">
+    <title>RSVP | Hudson & Hannah</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Great+Vibes&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <nav class="nav container" aria-label="Primary navigation">
+        <a class="nav__brand" href="index.html">H & H</a>
+        <button class="nav__toggle" type="button" aria-controls="primary-menu" aria-expanded="false"><span class="sr-only">Toggle navigation</span><span></span><span></span><span></span></button>
+        <ul class="nav__menu" id="primary-menu">
+          <li><a href="index.html">Home</a></li><li><a href="rsvp.html" aria-current="page">RSVP</a></li><li><a href="registry.html">Registry</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="admin.html">Admin</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main id="main" class="page-main">
+      <section class="page-hero section">
+        <div class="container narrow">
+          <p class="kicker">RSVP</p>
+          <h1>Let us know if you can join us</h1>
+          <p>Search for your invitation by name, phone, or invite code. Try “Martini”, “555-0101”, or “FALL101”.</p>
+        </div>
+      </section>
+      <section class="section">
+        <div class="container narrow">
+          <form class="card form-card" id="guest-search-form">
+            <label for="guest-search">Find your invitation</label>
+            <div class="inline-form">
+              <input id="guest-search" name="search" type="search" placeholder="Name, phone, or invite code" autocomplete="off" required>
+              <button class="button button--primary" type="submit">Search</button>
+            </div>
+            <p class="form-help" id="search-help">Placeholder guest data is stored in JavaScript for now.</p>
+          </form>
+          <div id="match-result" class="match-result" aria-live="polite"></div>
+          <form class="card form-card hidden" id="rsvp-form">
+            <input type="hidden" id="household-code">
+            <div class="form-section">
+              <h2>Your response</h2>
+              <p id="household-summary"></p>
+            </div>
+            <fieldset>
+              <legend>Will you attend?</legend>
+              <label class="radio-row"><input type="radio" name="status" value="attending" required> Joyfully attending</label>
+              <label class="radio-row"><input type="radio" name="status" value="declined"> Regretfully declining</label>
+            </fieldset>
+            <div class="form-grid">
+              <label>Number attending<input id="count-attending" name="count" type="number" min="0" value="1"></label>
+              <label>Meal choice<select id="meal-choice" name="meal"><option>Autumn chicken</option><option>Herb-crusted salmon</option><option>Vegetarian harvest plate</option><option>Kids meal</option></select></label>
+            </div>
+            <label>Allergies or dietary restrictions<textarea id="allergies" name="allergies" rows="3" placeholder="Let us know what the caterer should know."></textarea></label>
+            <label>Song request<input id="song-request" name="song" type="text" placeholder="A song that gets you dancing"></label>
+            <label>Notes<textarea id="rsvp-notes" name="notes" rows="3" placeholder="Anything else you want us to know?"></textarea></label>
+            <button class="button button--primary" type="submit">Submit RSVP</button>
+          </form>
+          <div class="notice hidden" id="rsvp-confirmation" role="status"></div>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer"><p class="footer-names">Hudson & Hannah</p><p class="copyright">© 2026 Hudson Matthews & Hannah Martini.</p></footer>
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/rsvp.js"></script>
+  </body>
+</html>

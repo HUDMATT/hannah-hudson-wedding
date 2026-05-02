@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Guest information form for Hudson and Hannah's wedding.">
+    <title>Guest Info | Hudson & Hannah</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Great+Vibes&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header"><nav class="nav container" aria-label="Primary navigation"><a class="nav__brand" href="index.html">H & H</a><button class="nav__toggle" type="button" aria-controls="primary-menu" aria-expanded="false"><span class="sr-only">Toggle navigation</span><span></span><span></span><span></span></button><ul class="nav__menu" id="primary-menu"><li><a href="index.html">Home</a></li><li><a href="rsvp.html">RSVP</a></li><li><a href="registry.html">Registry</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="admin.html">Admin</a></li></ul></nav></header>
+    <main id="main" class="page-main">
+      <section class="page-hero section"><div class="container narrow"><p class="kicker">Guest Info</p><h1>Help us keep your details current</h1><p id="guest-code-note">Use this form to update contact details and household information.</p></div></section>
+      <section class="section"><div class="container narrow">
+        <form class="card form-card" id="guest-info-form">
+          <label>Invite code<input id="info-code" name="code" type="text" placeholder="ABC123"></label>
+          <label>Name<input id="info-name" name="name" type="text" required></label>
+          <div class="form-grid"><label>Phone<input id="info-phone" name="phone" type="tel"></label><label>Email<input id="info-email" name="email" type="email"></label></div>
+          <label>Mailing address<textarea id="info-address" name="address" rows="3"></textarea></label>
+          <label>Household members<textarea id="info-household" name="household" rows="3" placeholder="List each household member on a new line."></textarea></label>
+          <label>Notes<textarea id="info-notes" name="notes" rows="3"></textarea></label>
+          <button class="button button--primary" type="submit">Save Guest Info</button>
+        </form>
+        <div class="notice hidden" id="guest-info-confirmation" role="status"></div>
+      </div></section>
+    </main>
+    <footer class="site-footer"><p class="footer-names">Hudson & Hannah</p><p class="copyright">© 2026 Hudson Matthews & Hannah Martini.</p></footer>
+    <script src="assets/js/main.js"></script>
+  </body>
+</html>
