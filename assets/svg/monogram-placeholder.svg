@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" role="img" aria-labelledby="title desc">
+  <title id="title">Hudson and Hannah monogram placeholder</title>
+  <desc id="desc">An evergreen and terracotta circular wedding monogram placeholder.</desc>
+  <circle cx="110" cy="110" r="96" fill="#F7F4EF" stroke="#2F4F3F" stroke-width="4"/>
+  <circle cx="110" cy="110" r="76" fill="none" stroke="#C96A4A" stroke-width="2"/>
+  <text x="110" y="124" fill="#2F4F3F" font-family="Georgia, serif" font-size="58" text-anchor="middle">H&amp;H</text>
+</svg>

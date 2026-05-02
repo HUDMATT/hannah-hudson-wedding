@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Wedding gallery for Hudson and Hannah.">
+    <title>Gallery | Hudson & Hannah</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Great+Vibes&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header"><nav class="nav container" aria-label="Primary navigation"><a class="nav__brand" href="index.html">H & H</a><button class="nav__toggle" type="button" aria-controls="primary-menu" aria-expanded="false"><span class="sr-only">Toggle navigation</span><span></span><span></span><span></span></button><ul class="nav__menu" id="primary-menu"><li><a href="index.html">Home</a></li><li><a href="rsvp.html">RSVP</a></li><li><a href="registry.html">Registry</a></li><li><a href="gallery.html" aria-current="page">Gallery</a></li><li><a href="admin.html">Admin</a></li></ul></nav></header>
+    <main id="main" class="page-main">
+      <section class="page-hero section"><div class="container narrow"><p class="kicker">Gallery</p><h1>Moments we love</h1><p>Replace these warm placeholder tiles with engagement photos, wedding weekend memories, and favorite snapshots.</p></div></section>
+      <section class="section"><div class="container">
+        <div class="section-heading"><p class="kicker">Engagement</p><h2>Before the wedding</h2></div>
+        <div class="gallery-grid" data-lightbox-gallery>
+          <button class="gallery-item photo-card photo-card--leaf" type="button" data-title="Engagement photo placeholder"><span>Engagement 01</span></button>
+          <button class="gallery-item photo-card photo-card--terracotta" type="button" data-title="Golden hour placeholder"><span>Engagement 02</span></button>
+          <button class="gallery-item photo-card photo-card--navy" type="button" data-title="Downtown stroll placeholder"><span>Engagement 03</span></button>
+        </div>
+      </div></section>
+      <section class="section section--beige"><div class="container">
+        <div class="section-heading"><p class="kicker">Wedding</p><h2>Coming soon</h2></div>
+        <div class="gallery-grid" data-lightbox-gallery>
+          <button class="gallery-item photo-card photo-card--cream" type="button" data-title="Ceremony placeholder"><span>Ceremony</span></button>
+          <button class="gallery-item photo-card photo-card--leaf" type="button" data-title="Reception placeholder"><span>Reception</span></button>
+          <button class="gallery-item photo-card photo-card--terracotta" type="button" data-title="Dance floor placeholder"><span>Celebration</span></button>
+        </div>
+      </div></section>
+      <div class="lightbox" id="lightbox" hidden>
+        <button class="lightbox__close" type="button" aria-label="Close image preview">×</button>
+        <div class="lightbox__image" role="img" aria-label="Selected gallery placeholder"></div>
+        <p id="lightbox-title"></p>
+      </div>
+    </main>
+    <footer class="site-footer"><p class="footer-names">Hudson & Hannah</p><p class="copyright">© 2026 Hudson Matthews & Hannah Martini.</p></footer>
+    <script src="assets/js/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Front-end admin dashboard for Hudson and Hannah's wedding.">
+    <title>Admin | Hudson & Hannah</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Great+Vibes&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <nav class="nav container" aria-label="Primary navigation">
+        <a class="nav__brand" href="index.html">H & H</a>
+        <button class="nav__toggle" type="button" aria-controls="primary-menu" aria-expanded="false"><span class="sr-only">Toggle navigation</span><span></span><span></span><span></span></button>
+        <ul class="nav__menu" id="primary-menu">
+          <li><a href="index.html">Home</a></li><li><a href="rsvp.html">RSVP</a></li><li><a href="registry.html">Registry</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="admin.html" aria-current="page">Admin</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main id="main" class="page-main">
+      <section class="page-hero section">
+        <div class="container narrow">
+          <p class="kicker">Admin</p>
+          <h1>Wedding dashboard</h1>
+          <p>Front-end-only tools using mock data and localStorage. TODO: replace these storage helpers with Supabase tables and row-level access.</p>
+        </div>
+      </section>
+
+      <section class="section section--cream">
+        <div class="container">
+          <div class="dashboard-grid" id="rsvp-dashboard" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container admin-layout">
+          <form class="card form-card" id="guest-form">
+            <h2 id="guest-form-title">Add guest</h2>
+            <input type="hidden" id="guest-id">
+            <label>Household or group name<input id="guest-household" type="text" required></label>
+            <div class="form-grid"><label>Primary guest<input id="guest-name" type="text" required></label><label>Invite code<input id="guest-code" type="text" required></label></div>
+            <div class="form-grid"><label>Phone<input id="guest-phone" type="tel"></label><label>Email<input id="guest-email" type="email"></label></div>
+            <label>Address<textarea id="guest-address" rows="3"></textarea></label>
+            <div class="form-grid"><label>Allowed plus ones<input id="guest-plusones" type="number" min="0" value="0"></label><label>Tags<input id="guest-tags" type="text" placeholder="family, rehearsal, VIP"></label></div>
+            <div class="button-row">
+              <button class="button button--primary" type="submit">Save Guest</button>
+              <button class="button button--ghost" type="button" id="reset-guest-form">Clear</button>
+            </div>
+          </form>
+
+          <div class="card">
+            <div class="card-header">
+              <div><p class="kicker">Guest List</p><h2>Households</h2></div>
+              <button class="button button--secondary" type="button" id="seed-demo-data">Reset Demo Data</button>
+            </div>
+            <div class="table-wrap">
+              <table class="guest-table">
+                <thead><tr><th>Household</th><th>Contact</th><th>Plus Ones</th><th>Tags</th><th>Actions</th></tr></thead>
+                <tbody id="guest-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--beige">
+        <div class="container admin-layout">
+          <div class="card form-card">
+            <h2>Guest info link generator</h2>
+            <label>Select guest or household<select id="link-guest-select"></select></label>
+            <button class="button button--primary" type="button" id="generate-link">Generate Link</button>
+            <div class="copy-box hidden" id="generated-link-wrap">
+              <input id="generated-link" type="text" readonly>
+              <button class="button button--secondary" type="button" id="copy-link">Copy</button>
+            </div>
+          </div>
+          <div class="card form-card">
+            <h2>Export</h2>
+            <p>Download CSV files from the current localStorage data.</p>
+            <div class="button-row">
+              <button class="button button--primary" type="button" id="export-guests">Export Guest CSV</button>
+              <button class="button button--secondary" type="button" id="export-rsvps">Export RSVP CSV</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer"><p class="footer-names">Hudson & Hannah</p><p class="copyright">© 2026 Hudson Matthews & Hannah Martini.</p></footer>
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/admin.js"></script>
+  </body>
+</html>
