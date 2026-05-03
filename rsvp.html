@@ -12,21 +12,17 @@
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
-    <header class="site-header">
-      <nav class="nav container" aria-label="Primary navigation">
-        <a class="nav__brand" href="index.html">H & H</a>
-        <button class="nav__toggle" type="button" aria-controls="primary-menu" aria-expanded="false"><span class="sr-only">Toggle navigation</span><span></span><span></span><span></span></button>
-        <ul class="nav__menu" id="primary-menu">
-          <li><a href="index.html">Home</a></li><li><a href="rsvp.html" aria-current="page">RSVP</a></li><li><a href="registry.html">Registry</a></li><li><a href="gallery.html">Gallery</a></li><li><a href="admin.html">Admin</a></li>
-        </ul>
-      </nav>
+    <header class="site-header site-header--simple">
+      <div class="nav container">
+        <span class="nav__brand" aria-label="Hudson and Hannah">H & H</span>
+      </div>
     </header>
     <main id="main" class="page-main">
       <section class="page-hero section">
         <div class="container narrow">
           <p class="kicker">RSVP</p>
           <h1>Let us know if you can join us</h1>
-          <p>Search for your invitation by name, phone, or invite code. Try “Martini”, “555-0101”, or “FALL101”.</p>
+          <p>Search for your invitation by name, phone, or invite code. Try “Martini”, “501-555-0101”, or “FALL101”.</p>
         </div>
       </section>
       <section class="section">
@@ -51,11 +47,22 @@
               <label class="radio-row"><input type="radio" name="status" value="attending" required> Joyfully attending</label>
               <label class="radio-row"><input type="radio" name="status" value="declined"> Regretfully declining</label>
             </fieldset>
-            <div class="form-grid">
-              <label>Number attending<input id="count-attending" name="count" type="number" min="0" value="1"></label>
-              <label>Meal choice<select id="meal-choice" name="meal"><option>Autumn chicken</option><option>Herb-crusted salmon</option><option>Vegetarian harvest plate</option><option>Kids meal</option></select></label>
-            </div>
-            <label>Allergies or dietary restrictions<textarea id="allergies" name="allergies" rows="3" placeholder="Let us know what the caterer should know."></textarea></label>
+            <fieldset>
+              <legend>Who will be attending?</legend>
+              <p class="form-help">Check each invited guest who plans to attend.</p>
+              <div class="member-checklist" id="invited-members"></div>
+            </fieldset>
+            <fieldset class="hidden" id="plus-one-fieldset">
+              <legend>Plus one</legend>
+              <label class="checkbox-card">
+                <input type="checkbox" id="plus-one-attending" name="plusOneAttending" value="yes">
+                <span>
+                  <strong>I am bringing a plus one</strong>
+                  <small id="plus-one-help">Please share their name below.</small>
+                </span>
+              </label>
+              <label id="plus-one-name-wrap">Plus one name<input id="plus-one-name" name="plusOneName" type="text" placeholder="Guest name"></label>
+            </fieldset>
             <label>Song request<input id="song-request" name="song" type="text" placeholder="A song that gets you dancing"></label>
             <label>Notes<textarea id="rsvp-notes" name="notes" rows="3" placeholder="Anything else you want us to know?"></textarea></label>
             <button class="button button--primary" type="submit">Submit RSVP</button>

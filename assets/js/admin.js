@@ -6,9 +6,84 @@
   const tableBody = $("#guest-table-body");
   const dashboard = $("#rsvp-dashboard");
   const linkSelect = $("#link-guest-select");
+  const memberEditorList = $("#member-editor-list");
+  const missingInfoList = $("#missing-info-list");
+
+  function escapeHTML(value) {
+    return String(value || "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[char]));
+  }
+
+  function getMembers(guest) {
+    const members = guest.members && guest.members.length ? guest.members : [guest.name];
+    return members.map((member) => {
+      if (typeof member === "string") return { name: member, type: "adult" };
+      return { name: member.name, type: member.type || "adult" };
+    }).filter((member) => member.name);
+  }
+
+  function renderMemberEditor(members = []) {
+    const editableMembers = members.length ? members : [{ name: "", type: "adult" }];
+    memberEditorList.innerHTML = editableMembers.map((member, index) => `
+      <div class="member-row">
+        <label>Member name<input class="member-name" type="text" value="${escapeHTML(member.name)}" placeholder="Guest name"></label>
+        <label>Type<select class="member-type">
+          <option value="adult"${member.type !== "child" ? " selected" : ""}>Adult</option>
+          <option value="child"${member.type === "child" ? " selected" : ""}>Child</option>
+        </select></label>
+        <button class="button button--ghost member-remove" type="button" aria-label="Remove member">Remove</button>
+      </div>
+    `).join("");
+  }
 
   function getGuests() {
     return HNW.ensureGuests();
+  }
+
+  function getGuestInfoUpdates() {
+    return HNW.storage.get("hnwGuestInfoUpdates", []);
+  }
+
+  function getLatestInfoByCode() {
+    return getGuestInfoUpdates().reduce((latest, update) => {
+      if (!update.code) return latest;
+      const code = update.code.toUpperCase();
+      if (!latest[code] || new Date(update.updatedAt) > new Date(latest[code].updatedAt || 0)) {
+        latest[code] = update;
+      }
+      return latest;
+    }, {});
+  }
+
+  function withLatestInfo(guest, latestInfoByCode = getLatestInfoByCode()) {
+    const update = latestInfoByCode[String(guest.code || "").toUpperCase()];
+    if (!update) return guest;
+    return {
+      ...guest,
+      name: update.name || guest.name,
+      phone: update.phone || guest.phone,
+      email: update.email || guest.email,
+      address: update.address || guest.address
+    };
+  }
+
+  function getMissingFields(guest) {
+    return [
+      ["Phone", guest.phone],
+      ["Email", guest.email],
+      ["Mailing address", guest.address]
+    ].filter((field) => !String(field[1] || "").trim()).map((field) => field[0]);
+  }
+
+  function buildGuestInfoUrl(code) {
+    const basePath = window.location.pathname.replace("admin.html", "");
+    const origin = window.location.origin === "null" ? "" : window.location.origin;
+    return `${origin}${basePath}guest-info.html?code=${encodeURIComponent(code)}`;
   }
 
   function saveGuests(guests) {
@@ -25,43 +100,87 @@
     $("#guest-id").value = "";
     $("#guest-code").value = `FALL${Math.floor(100 + Math.random() * 900)}`;
     $("#guest-form-title").textContent = "Add guest";
+    renderMemberEditor();
   }
 
   function renderGuests() {
+    const latestInfoByCode = getLatestInfoByCode();
     const guests = getGuests();
-    tableBody.innerHTML = guests.map((guest) => `
+    tableBody.innerHTML = guests.map((storedGuest) => {
+      const guest = withLatestInfo(storedGuest, latestInfoByCode);
+      const members = getMembers(storedGuest);
+      const adultCount = members.filter((member) => member.type !== "child").length;
+      const childCount = members.filter((member) => member.type === "child").length;
+      return `
       <tr>
-        <td data-label="Household"><strong>${guest.household}</strong><br>${guest.name}<br><small>${guest.code}</small></td>
-        <td data-label="Contact">${guest.phone || "No phone"}<br>${guest.email || "No email"}<br><small>${guest.address || "No address"}</small></td>
-        <td data-label="Plus Ones">${guest.plusOnes || 0}</td>
-        <td data-label="Tags">${guest.tags || ""}</td>
+        <td data-label="Household"><strong>${escapeHTML(guest.household)}</strong><br>${escapeHTML(guest.name)}<br><small>${escapeHTML(guest.code)}</small></td>
+        <td data-label="Contact">${escapeHTML(guest.phone || "No phone")}<br>${escapeHTML(guest.email || "No email")}<br><small>${escapeHTML(guest.address || "No address")}</small></td>
+        <td data-label="Plus Ones">${guest.plusOnes || 0}<br><small>${adultCount} adult${adultCount === 1 ? "" : "s"} · ${childCount} child${childCount === 1 ? "" : "ren"}</small></td>
+        <td data-label="Tags">${escapeHTML(guest.tags || "")}<br><small>${members.map((member) => `${escapeHTML(member.name)} (${member.type})`).join(", ")}</small></td>
         <td data-label="Actions"><div class="table-actions"><button class="button button--ghost" type="button" data-edit="${guest.id}">Edit</button><button class="button button--primary" type="button" data-delete="${guest.id}">Delete</button></div></td>
       </tr>
-    `).join("");
+    `;
+    }).join("");
 
     linkSelect.innerHTML = guests.map((guest) => `<option value="${guest.id}">${guest.household} (${guest.code})</option>`).join("");
   }
 
   function renderDashboard() {
-    const guests = getGuests();
+    const latestInfoByCode = getLatestInfoByCode();
+    const storedGuests = getGuests();
+    const guests = storedGuests.map((guest) => withLatestInfo(guest, latestInfoByCode));
     const rsvps = getRsvps();
     const attending = rsvps.filter((item) => item.status === "attending");
     const declined = rsvps.filter((item) => item.status === "declined");
-    const invitedTotal = guests.reduce((sum, guest) => sum + (guest.members || [guest.name]).length + Number(guest.plusOnes || 0), 0);
-    const mealCounts = attending.reduce((counts, item) => {
-      counts[item.meal] = (counts[item.meal] || 0) + Number(item.count || 0);
-      return counts;
-    }, {});
-    const allergyItems = attending.filter((item) => item.allergies).map((item) => `${item.household}: ${item.allergies}`);
+    const invitedMembers = guests.flatMap(getMembers);
+    const invitedTotal = invitedMembers.length + guests.reduce((sum, guest) => sum + Number(guest.plusOnes || 0), 0);
+    const attendingMembers = attending.flatMap((item) => item.attendingMembers || []);
+    const attendingPlusOnes = attending.filter((item) => item.plusOne && item.plusOne.attending);
+    const adultInvited = invitedMembers.filter((member) => member.type !== "child").length;
+    const childInvited = invitedMembers.filter((member) => member.type === "child").length;
+    const adultAttending = attendingMembers.filter((member) => member.type !== "child").length + attendingPlusOnes.length;
+    const childAttending = attendingMembers.filter((member) => member.type === "child").length;
+    const missingInfoCount = guests.filter((guest) => getMissingFields(guest).length > 0).length;
 
     dashboard.innerHTML = `
       <article class="card metric"><span class="card__label">Total invited</span><strong>${invitedTotal}</strong></article>
       <article class="card metric"><span class="card__label">Attending</span><strong>${attending.reduce((sum, item) => sum + Number(item.count || 0), 0)}</strong></article>
       <article class="card metric"><span class="card__label">Declined</span><strong>${declined.length}</strong></article>
       <article class="card metric"><span class="card__label">No response</span><strong>${Math.max(guests.length - rsvps.length, 0)}</strong></article>
-      <article class="card"><h3>Meal Summary</h3><ul class="summary-list">${Object.entries(mealCounts).map(([meal, count]) => `<li>${meal}: ${count}</li>`).join("") || "<li>No meal responses yet.</li>"}</ul></article>
-      <article class="card"><h3>Allergy Summary</h3><ul class="summary-list">${allergyItems.map((item) => `<li>${item}</li>`).join("") || "<li>No allergies submitted yet.</li>"}</ul></article>
+      <article class="card metric"><span class="card__label">Missing info</span><strong>${missingInfoCount}</strong></article>
+      <article class="card"><h3>Invited Breakdown</h3><ul class="summary-list"><li>Adults: ${adultInvited}</li><li>Children: ${childInvited}</li><li>Possible plus ones: ${guests.reduce((sum, guest) => sum + Number(guest.plusOnes || 0), 0)}</li></ul></article>
+      <article class="card"><h3>Attending Breakdown</h3><ul class="summary-list"><li>Adults: ${adultAttending}</li><li>Children: ${childAttending}</li><li>Plus ones: ${attendingPlusOnes.length}</li></ul></article>
     `;
+  }
+
+  function renderMissingInfo() {
+    const latestInfoByCode = getLatestInfoByCode();
+    const missingGuests = getGuests().map((guest) => withLatestInfo(guest, latestInfoByCode)).map((guest) => ({
+      ...guest,
+      missingFields: getMissingFields(guest)
+    })).filter((guest) => guest.missingFields.length > 0);
+
+    if (missingGuests.length === 0) {
+      missingInfoList.innerHTML = `<div class="notice">All guest contact records are complete.</div>`;
+      return;
+    }
+
+    missingInfoList.innerHTML = missingGuests.map((guest) => `
+      <article class="missing-info-item">
+        <div>
+          <h3>${escapeHTML(guest.household)}</h3>
+          <p>${escapeHTML(guest.name)} · Invite code: <strong>${escapeHTML(guest.code)}</strong></p>
+          <p class="missing-info-item__fields">Missing: ${guest.missingFields.map(escapeHTML).join(", ")}</p>
+        </div>
+        <div class="missing-info-item__actions">
+          <label>Guest info link<input type="text" value="${escapeHTML(buildGuestInfoUrl(guest.code))}" readonly></label>
+          <div class="button-row">
+            <button class="button button--secondary" type="button" data-copy-missing-link="${escapeHTML(guest.code)}">Copy Link</button>
+            <button class="button button--ghost" type="button" data-edit="${escapeHTML(guest.id)}">Edit</button>
+          </div>
+        </div>
+      </article>
+    `).join("");
   }
 
   function fillForm(id) {
@@ -77,6 +196,7 @@
     $("#guest-address").value = guest.address || "";
     $("#guest-plusones").value = guest.plusOnes || 0;
     $("#guest-tags").value = guest.tags || "";
+    renderMemberEditor(getMembers(guest));
     guestForm.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -86,17 +206,22 @@
   }
 
   function guestFromForm() {
+    const members = Array.from(memberEditorList.querySelectorAll(".member-row")).map((row) => ({
+      name: row.querySelector(".member-name").value.trim(),
+      type: row.querySelector(".member-type").value
+    })).filter((member) => member.name);
+    const primaryName = $("#guest-name").value.trim();
     return {
       id: $("#guest-id").value || `g-${Date.now()}`,
       household: $("#guest-household").value.trim(),
-      name: $("#guest-name").value.trim(),
+      name: primaryName,
       code: $("#guest-code").value.trim().toUpperCase(),
       phone: $("#guest-phone").value.trim(),
       email: $("#guest-email").value.trim(),
       address: $("#guest-address").value.trim(),
       plusOnes: Number($("#guest-plusones").value || 0),
       tags: $("#guest-tags").value.trim(),
-      members: [$("#guest-name").value.trim()]
+      members: members.length ? members : [{ name: primaryName, type: "adult" }]
     };
   }
 
@@ -114,6 +239,7 @@
   function renderAll() {
     renderGuests();
     renderDashboard();
+    renderMissingInfo();
   }
 
   guestForm.addEventListener("submit", (event) => {
@@ -135,7 +261,41 @@
     if (deleteId) deleteGuest(deleteId);
   });
 
+  missingInfoList.addEventListener("click", (event) => {
+    const editId = event.target.dataset.edit;
+    if (editId) fillForm(editId);
+    const code = event.target.dataset.copyMissingLink;
+    if (!code) return;
+    const url = buildGuestInfoUrl(code);
+    navigator.clipboard.writeText(url).then(() => {
+      event.target.textContent = "Copied";
+      setTimeout(() => { event.target.textContent = "Copy Link"; }, 1400);
+    }).catch(() => {
+      const input = event.target.closest(".missing-info-item").querySelector("input[readonly]");
+      input.select();
+      document.execCommand("copy");
+    });
+  });
+
   $("#reset-guest-form").addEventListener("click", blankForm);
+  $("#add-member").addEventListener("click", () => {
+    const members = Array.from(memberEditorList.querySelectorAll(".member-row")).map((row) => ({
+      name: row.querySelector(".member-name").value.trim(),
+      type: row.querySelector(".member-type").value
+    }));
+    members.push({ name: "", type: "adult" });
+    renderMemberEditor(members);
+  });
+  memberEditorList.addEventListener("click", (event) => {
+    if (!event.target.classList.contains("member-remove")) return;
+    const rows = Array.from(memberEditorList.querySelectorAll(".member-row"));
+    if (rows.length === 1) {
+      rows[0].querySelector(".member-name").value = "";
+      rows[0].querySelector(".member-type").value = "adult";
+      return;
+    }
+    event.target.closest(".member-row").remove();
+  });
   $("#seed-demo-data").addEventListener("click", () => {
     HNW.storage.set("hnwGuests", HNW.demoGuests);
     renderAll();
@@ -145,9 +305,7 @@
     const guest = getGuests().find((item) => item.id === linkSelect.value);
     if (!guest) return;
     const code = guest.code || Math.random().toString(36).slice(2, 8).toUpperCase();
-    const basePath = window.location.pathname.replace("admin.html", "");
-    const origin = window.location.origin === "null" ? "" : window.location.origin;
-    const url = `${origin}${basePath}guest-info.html?code=${encodeURIComponent(code)}`;
+    const url = buildGuestInfoUrl(code);
     $("#generated-link").value = url;
     $("#generated-link-wrap").classList.remove("hidden");
   });
@@ -165,17 +323,51 @@
   });
 
   $("#export-guests").addEventListener("click", () => {
-    const rows = [["Household", "Name", "Phone", "Email", "Address", "Plus Ones", "Tags", "Code"]];
-    getGuests().forEach((guest) => rows.push([guest.household, guest.name, guest.phone, guest.email, guest.address, guest.plusOnes, guest.tags, guest.code]));
+    const latestInfoByCode = getLatestInfoByCode();
+    const rows = [["Household", "Primary Name", "Members", "Adult Count", "Child Count", "Missing Fields", "Phone", "Email", "Address", "Plus Ones", "Tags", "Code"]];
+    getGuests().forEach((storedGuest) => {
+      const guest = withLatestInfo(storedGuest, latestInfoByCode);
+      const members = getMembers(storedGuest);
+      rows.push([
+        guest.household,
+        guest.name,
+        members.map((member) => `${member.name} (${member.type})`).join("; "),
+        members.filter((member) => member.type !== "child").length,
+        members.filter((member) => member.type === "child").length,
+        getMissingFields(guest).join("; "),
+        guest.phone,
+        guest.email,
+        guest.address,
+        guest.plusOnes,
+        guest.tags,
+        guest.code
+      ]);
+    });
     csvDownload("wedding-guests.csv", rows);
   });
 
   $("#export-rsvps").addEventListener("click", () => {
-    const rows = [["Household", "Code", "Status", "Count", "Meal", "Allergies", "Song", "Notes", "Submitted At"]];
-    getRsvps().forEach((rsvp) => rows.push([rsvp.household, rsvp.code, rsvp.status, rsvp.count, rsvp.meal, rsvp.allergies, rsvp.song, rsvp.notes, rsvp.submittedAt]));
+    const rows = [["Household", "Code", "Status", "Count", "Attending Members", "Plus One Attending", "Plus One Name", "Song", "Notes", "Submitted At"]];
+    getRsvps().forEach((rsvp) => rows.push([
+      rsvp.household,
+      rsvp.code,
+      rsvp.status,
+      rsvp.count,
+      (rsvp.attendingMembers || []).map((member) => `${member.name} (${member.type})`).join("; "),
+      rsvp.plusOne && rsvp.plusOne.attending ? "Yes" : "No",
+      rsvp.plusOne && rsvp.plusOne.attending ? rsvp.plusOne.name : "",
+      rsvp.song,
+      rsvp.notes,
+      rsvp.submittedAt
+    ]));
     csvDownload("wedding-rsvps.csv", rows);
   });
 
   blankForm();
   renderAll();
+
+  window.addEventListener("storage", (event) => {
+    if (["hnwGuestInfoUpdates", "hnwGuests"].includes(event.key)) renderAll();
+  });
+  window.addEventListener("focus", renderAll);
 })();

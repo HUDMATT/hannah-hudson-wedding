@@ -24,7 +24,11 @@ HNW.demoGuests = [
     plusOnes: 2,
     tags: "family, rehearsal",
     code: "FALL101",
-    members: ["Lena Martini", "Marco Martini", "Sofia Martini"]
+    members: [
+      { name: "Lena Martini", type: "adult" },
+      { name: "Marco Martini", type: "adult" },
+      { name: "Sofia Martini", type: "child" }
+    ]
   },
   {
     id: "g-102",
@@ -36,7 +40,10 @@ HNW.demoGuests = [
     plusOnes: 1,
     tags: "friends",
     code: "FALL102",
-    members: ["Jordan Blake", "Taylor Reed"]
+    members: [
+      { name: "Jordan Blake", type: "adult" },
+      { name: "Taylor Reed", type: "adult" }
+    ]
   },
   {
     id: "g-103",
@@ -48,7 +55,9 @@ HNW.demoGuests = [
     plusOnes: 0,
     tags: "coworkers",
     code: "FALL103",
-    members: ["Morgan Avery"]
+    members: [
+      { name: "Morgan Avery", type: "adult" }
+    ]
   }
 ];
 
@@ -151,22 +160,95 @@ function initGuestInfoForm() {
   const codeInput = document.querySelector("#info-code");
   const note = document.querySelector("#guest-code-note");
   const confirmation = document.querySelector("#guest-info-confirmation");
+  const knownInfo = document.querySelector("#known-info");
+  const allInfoComplete = document.querySelector("#all-info-complete");
+  const nameInput = document.querySelector("#info-name");
+  const phoneInput = document.querySelector("#info-phone");
+  const emailInput = document.querySelector("#info-email");
+  const addressInput = document.querySelector("#info-address");
+  const householdInput = document.querySelector("#info-household");
+
+  const escapeHTML = (value) => String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[char]));
+
+  const getMembers = (guest) => {
+    const members = guest && guest.members && guest.members.length ? guest.members : [];
+    return members.map((member) => typeof member === "string" ? member : member.name).filter(Boolean);
+  };
+
+  const findGuestByCode = (inviteCode) => HNW.ensureGuests().find((guest) => (
+    String(guest.code || "").toLowerCase() === String(inviteCode || "").toLowerCase()
+  ));
+
+  const setFieldVisibility = (id, value, requiredWhenVisible = false) => {
+    const wrapper = document.querySelector(`#${id}-wrap`);
+    const input = document.querySelector(`#${id}`);
+    const hasValue = Boolean(String(value || "").trim());
+    if (!wrapper || !input) return hasValue;
+    input.value = value || "";
+    wrapper.classList.toggle("hidden", hasValue);
+    input.required = !hasValue && requiredWhenVisible;
+    return hasValue;
+  };
 
   if (code) {
     codeInput.value = code;
-    note.textContent = `Invite code ${code} was detected from the link.`;
+    const guest = findGuestByCode(code);
+    const householdMembers = getMembers(guest).join("\n");
+
+    note.textContent = guest
+      ? `We found your household using invite code ${code}. Please complete only the missing details below.`
+      : `Invite code ${code} was detected. Please complete the details below.`;
+
+    if (guest) {
+      const completeFields = [
+        ["Name", guest.name],
+        ["Phone", guest.phone],
+        ["Email", guest.email],
+        ["Mailing address", guest.address],
+        ["Household members", householdMembers]
+      ].filter((field) => String(field[1] || "").trim());
+
+      if (completeFields.length) {
+        knownInfo.innerHTML = `<p class="kicker">Already on file</p><ul>${completeFields.map(([label, value]) => `<li><strong>${label}:</strong> ${escapeHTML(value).replace(/\n/g, ", ")}</li>`).join("")}</ul>`;
+        knownInfo.classList.remove("hidden");
+      }
+
+      const fieldStatus = [
+        setFieldVisibility("info-name", guest.name, true),
+        setFieldVisibility("info-phone", guest.phone, true),
+        setFieldVisibility("info-email", guest.email, true),
+        setFieldVisibility("info-address", guest.address, true),
+        setFieldVisibility("info-household", householdMembers, true)
+      ];
+
+      if (fieldStatus.every(Boolean)) {
+        allInfoComplete.classList.remove("hidden");
+      }
+    } else {
+      nameInput.required = true;
+    }
+  } else {
+    note.textContent = "Please complete the details below. If you were sent a personalized link, the invite code should appear automatically.";
+    nameInput.required = true;
   }
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    const currentGuest = findGuestByCode(codeInput.value.trim());
     const record = {
       code: codeInput.value.trim(),
-      name: document.querySelector("#info-name").value.trim(),
-      phone: document.querySelector("#info-phone").value.trim(),
-      email: document.querySelector("#info-email").value.trim(),
-      address: document.querySelector("#info-address").value.trim(),
-      household: document.querySelector("#info-household").value.trim(),
-      notes: document.querySelector("#info-notes").value.trim(),
+      name: nameInput.value.trim() || (currentGuest && currentGuest.name) || "",
+      phone: phoneInput.value.trim() || (currentGuest && currentGuest.phone) || "",
+      email: emailInput.value.trim() || (currentGuest && currentGuest.email) || "",
+      address: addressInput.value.trim() || (currentGuest && currentGuest.address) || "",
+      household: householdInput.value.trim() || getMembers(currentGuest).join("\n"),
+      notes: "",
       updatedAt: new Date().toISOString()
     };
 
@@ -174,6 +256,24 @@ function initGuestInfoForm() {
     const updates = HNW.storage.get("hnwGuestInfoUpdates", []);
     updates.push(record);
     HNW.storage.set("hnwGuestInfoUpdates", updates);
+
+    const guests = HNW.storage.get("hnwGuests", []);
+    const guestIndex = guests.findIndex((guest) => String(guest.code || "").toLowerCase() === record.code.toLowerCase());
+    if (guestIndex >= 0) {
+      const householdWasVisible = !document.querySelector("#info-household-wrap").classList.contains("hidden");
+      guests[guestIndex] = {
+        ...guests[guestIndex],
+        name: record.name || guests[guestIndex].name,
+        phone: record.phone || guests[guestIndex].phone,
+        email: record.email || guests[guestIndex].email,
+        address: record.address || guests[guestIndex].address,
+        members: householdWasVisible && record.household
+          ? record.household.split(/\n|,/).map((name) => name.trim()).filter(Boolean).map((name) => ({ name, type: "adult" }))
+          : guests[guestIndex].members
+      };
+      HNW.storage.set("hnwGuests", guests);
+    }
+
     confirmation.textContent = "Thank you. Your guest information has been saved locally for now.";
     confirmation.classList.remove("hidden");
     form.reset();
