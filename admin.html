@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Great+Vibes&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
   </head>
-  <body>
+  <body class="admin-locked">
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <nav class="nav container" aria-label="Primary navigation">
@@ -22,11 +22,30 @@
       </nav>
     </header>
     <main id="main" class="page-main">
+      <section class="admin-login section" id="admin-login-panel" aria-labelledby="admin-login-title">
+        <div class="container narrow">
+          <form class="card form-card admin-login__card" id="admin-login-form">
+            <div>
+              <p class="kicker">Admin Login</p>
+              <h1 id="admin-login-title">Private dashboard</h1>
+              <p>Enter the admin credentials to manage guests, RSVPs, and missing information.</p>
+            </div>
+            <label>Username<input id="admin-username" name="username" type="text" autocomplete="username" required></label>
+            <label>Password<input id="admin-password" name="password" type="password" autocomplete="current-password" required></label>
+            <button class="button button--primary" type="submit">Unlock Admin</button>
+            <p class="form-help">Admin credentials are verified by Cloudflare Pages Functions and stored as hashed records in D1.</p>
+            <div class="notice hidden" id="admin-login-error" role="alert"></div>
+          </form>
+        </div>
+      </section>
+
+      <div id="admin-app" hidden>
       <section class="page-hero section">
         <div class="container narrow">
           <p class="kicker">Admin</p>
           <h1>Wedding dashboard</h1>
           <p>Front-end-only tools using mock data and localStorage. TODO: replace these storage helpers with Supabase tables and row-level access.</p>
+          <button class="button button--ghost" type="button" id="admin-logout">Log Out</button>
         </div>
       </section>
 
@@ -108,6 +127,7 @@
           </div>
         </div>
       </section>
+      </div>
     </main>
     <footer class="site-footer"><p class="footer-names">Hudson & Hannah</p><p class="copyright">© 2026 Hudson Matthews & Hannah Martini.</p></footer>
     <script src="assets/js/main.js"></script>

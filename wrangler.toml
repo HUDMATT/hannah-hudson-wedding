@@ -1,0 +1,14 @@
+name = "hannah-hudson-wedding"
+compatibility_date = "2026-05-03"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hannah-hudson-wedding-db"
+database_id = "4d8be24a-438e-4791-a576-9bae281c9b5e"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "GALLERY_BUCKET"
+bucket_name = "hannah-hudson-wedding-gallery"
+

@@ -8,6 +8,48 @@
   const linkSelect = $("#link-guest-select");
   const memberEditorList = $("#member-editor-list");
   const missingInfoList = $("#missing-info-list");
+  const loginPanel = $("#admin-login-panel");
+  const loginForm = $("#admin-login-form");
+  const loginError = $("#admin-login-error");
+  const adminApp = $("#admin-app");
+  const logoutButton = $("#admin-logout");
+  let adminAuthenticated = false;
+
+  function setAdminLocked(isLocked) {
+    document.body.classList.toggle("admin-locked", isLocked);
+    document.body.classList.toggle("admin-unlocked", !isLocked);
+    loginPanel.hidden = !isLocked;
+    adminApp.hidden = isLocked;
+  }
+
+  function unlockAdmin() {
+    adminAuthenticated = true;
+    setAdminLocked(false);
+    blankForm();
+    renderAll();
+  }
+
+  function lockAdmin() {
+    adminAuthenticated = false;
+    setAdminLocked(true);
+    loginForm.reset();
+  }
+
+  function isAdminAuthenticated() {
+    return adminAuthenticated;
+  }
+
+  async function checkSession() {
+    try {
+      const response = await fetch("/api/auth/me", { credentials: "same-origin" });
+      if (response.ok) unlockAdmin();
+      else lockAdmin();
+    } catch {
+      loginError.textContent = "Admin authentication is waiting on Cloudflare Pages Functions. Deploy or run with Wrangler to use the backend login.";
+      loginError.classList.remove("hidden");
+      lockAdmin();
+    }
+  }
 
   function escapeHTML(value) {
     return String(value || "").replace(/[&<>"']/g, (char) => ({
@@ -363,11 +405,55 @@
     csvDownload("wedding-rsvps.csv", rows);
   });
 
-  blankForm();
-  renderAll();
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    loginError.classList.add("hidden");
+
+    const username = $("#admin-username").value.trim();
+    const password = $("#admin-password").value;
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (response.ok) {
+        unlockAdmin();
+        return;
+      }
+    } catch {
+      loginError.textContent = "Could not reach the admin auth endpoint. Run with Wrangler or deploy to Cloudflare Pages.";
+      loginError.classList.remove("hidden");
+      return;
+    }
+
+    loginError.textContent = "The username or password is incorrect.";
+    loginError.classList.remove("hidden");
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+    } finally {
+      lockAdmin();
+    }
+  });
+
+  if (window.location.protocol === "file:") {
+    loginError.textContent = "Admin login requires Cloudflare Pages Functions. Use Wrangler local dev or deploy to Cloudflare Pages.";
+    loginError.classList.remove("hidden");
+    lockAdmin();
+  } else {
+    checkSession();
+  }
 
   window.addEventListener("storage", (event) => {
-    if (["hnwGuestInfoUpdates", "hnwGuests"].includes(event.key)) renderAll();
+    if (isAdminAuthenticated() && ["hnwGuestInfoUpdates", "hnwGuests"].includes(event.key)) renderAll();
   });
-  window.addEventListener("focus", renderAll);
+  window.addEventListener("focus", () => {
+    if (isAdminAuthenticated()) renderAll();
+  });
 })();

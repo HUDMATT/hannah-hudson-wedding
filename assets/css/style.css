@@ -18,6 +18,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -42,6 +43,19 @@ p { margin: 0 0 1rem; }
 .section--beige { background: var(--color-warm-beige); }
 .page-main { padding-top: 4rem; }
 .page-hero { background: linear-gradient(180deg, var(--color-cream), var(--color-warm-beige)); text-align: center; }
+.admin-login {
+  align-items: center;
+  background: linear-gradient(180deg, var(--color-cream), var(--color-warm-beige));
+  display: grid;
+  min-height: calc(100vh - 4rem);
+}
+.admin-login__card {
+  margin-inline: auto;
+  max-width: 560px;
+}
+.admin-unlocked .admin-login {
+  display: none;
+}
 .kicker, .card__label {
   color: var(--color-terracotta);
   font-size: 0.78rem;
