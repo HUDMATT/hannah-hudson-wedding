@@ -36,6 +36,21 @@
         </div>
       </section>
 
+      <section class="section section--beige">
+        <div class="container">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <p class="kicker">Guest Info</p>
+                <h2>Missing information</h2>
+                <p>Households appear here when they are missing a phone number, email, or mailing address.</p>
+              </div>
+            </div>
+            <div class="missing-info-list" id="missing-info-list" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="section">
         <div class="container admin-layout">
           <form class="card form-card" id="guest-form">
@@ -46,6 +61,11 @@
             <div class="form-grid"><label>Phone<input id="guest-phone" type="tel"></label><label>Email<input id="guest-email" type="email"></label></div>
             <label>Address<textarea id="guest-address" rows="3"></textarea></label>
             <div class="form-grid"><label>Allowed plus ones<input id="guest-plusones" type="number" min="0" value="0"></label><label>Tags<input id="guest-tags" type="text" placeholder="family, rehearsal, VIP"></label></div>
+            <fieldset class="member-editor">
+              <legend>Invited family members</legend>
+              <div id="member-editor-list"></div>
+              <button class="button button--ghost" type="button" id="add-member">Add Member</button>
+            </fieldset>
             <div class="button-row">
               <button class="button button--primary" type="submit">Save Guest</button>
               <button class="button button--ghost" type="button" id="reset-guest-form">Clear</button>

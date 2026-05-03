@@ -5,7 +5,29 @@
 
   const matchResult = document.querySelector("#match-result");
   const confirmation = document.querySelector("#rsvp-confirmation");
+  const plusOneFieldset = document.querySelector("#plus-one-fieldset");
+  const plusOneCheckbox = document.querySelector("#plus-one-attending");
+  const plusOneName = document.querySelector("#plus-one-name");
+  const plusOneHelp = document.querySelector("#plus-one-help");
   let selectedGuest = null;
+
+  function escapeHTML(value) {
+    return String(value || "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[char]));
+  }
+
+  function getMembers(guest) {
+    const members = guest.members && guest.members.length ? guest.members : [guest.name];
+    return members.map((member) => {
+      if (typeof member === "string") return { name: member, type: "adult" };
+      return { name: member.name, type: member.type || "adult" };
+    }).filter((member) => member.name);
+  }
 
   function normalize(value) {
     return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -20,18 +42,35 @@
         guest.phone,
         guest.email,
         guest.code,
-        ...(guest.members || [])
+        ...getMembers(guest).map((member) => member.name)
       ].map(normalize).join(" ");
       return haystack.includes(needle);
     });
   }
 
   function showGuest(guest) {
+    const members = getMembers(guest);
+    const plusOneCount = Number(guest.plusOnes || 0);
     selectedGuest = guest;
     document.querySelector("#household-code").value = guest.code;
-    document.querySelector("#household-summary").textContent = `${guest.household}: ${(guest.members || [guest.name]).join(", ")}. Allowed plus ones: ${guest.plusOnes}.`;
-    document.querySelector("#count-attending").max = String((guest.members || [guest.name]).length + Number(guest.plusOnes || 0));
-    matchResult.innerHTML = `<div class="card"><p class="kicker">Invitation Found</p><h2>${guest.household}</h2><p>${(guest.members || [guest.name]).join(", ")}</p><p>Invite code: <strong>${guest.code}</strong></p></div>`;
+    document.querySelector("#household-summary").textContent = `${guest.household}: ${members.map((member) => member.name).join(", ")}.${plusOneCount ? ` Plus ones allowed: ${plusOneCount}.` : ""}`;
+    document.querySelector("#invited-members").innerHTML = members.map((member) => `
+      <label class="checkbox-card">
+        <input type="checkbox" name="attendingMembers" value="${escapeHTML(member.name)}" data-member-type="${escapeHTML(member.type)}" checked>
+        <span>
+          <strong>${escapeHTML(member.name)}</strong>
+          <small>${member.type === "child" ? "Child" : "Adult"}</small>
+        </span>
+      </label>
+    `).join("");
+    plusOneCheckbox.checked = false;
+    plusOneName.value = "";
+    plusOneName.required = false;
+    plusOneHelp.textContent = plusOneCount > 1
+      ? `This form currently collects one plus one name. Additional guest names can go in the notes.`
+      : "Please share their name below.";
+    plusOneFieldset.classList.toggle("hidden", plusOneCount <= 0);
+    matchResult.innerHTML = `<div class="card"><p class="kicker">Invitation Found</p><h2>${escapeHTML(guest.household)}</h2><p>${members.map((member) => `${escapeHTML(member.name)} (${member.type === "child" ? "child" : "adult"})`).join(", ")}</p><p>Invite code: <strong>${escapeHTML(guest.code)}</strong></p></div>`;
     rsvpForm.classList.remove("hidden");
     confirmation.classList.add("hidden");
   }
@@ -54,14 +93,34 @@
     if (!selectedGuest) return;
 
     const formData = new FormData(rsvpForm);
+    const attendingMembers = Array.from(rsvpForm.querySelectorAll('input[name="attendingMembers"]:checked')).map((input) => ({
+      name: input.value,
+      type: input.dataset.memberType || "adult"
+    }));
+    if (formData.get("status") === "attending" && attendingMembers.length === 0) {
+      confirmation.textContent = "Please check at least one invited guest who will attend, or choose regretfully declining.";
+      confirmation.classList.remove("hidden");
+      return;
+    }
+    const plusOne = {
+      attending: formData.get("status") === "attending" && plusOneCheckbox.checked,
+      name: plusOneName.value.trim(),
+      type: "adult"
+    };
+    if (plusOne.attending && !plusOne.name) {
+      confirmation.textContent = "Please enter your plus one's name, or uncheck the plus one option.";
+      confirmation.classList.remove("hidden");
+      plusOneName.focus();
+      return;
+    }
     const response = {
       guestId: selectedGuest.id,
       household: selectedGuest.household,
       code: selectedGuest.code,
       status: formData.get("status"),
-      count: Number(formData.get("count") || 0),
-      meal: formData.get("meal"),
-      allergies: formData.get("allergies") || "",
+      count: formData.get("status") === "attending" ? attendingMembers.length + (plusOne.attending ? 1 : 0) : 0,
+      attendingMembers: formData.get("status") === "attending" ? attendingMembers : [],
+      plusOne: plusOne.attending ? plusOne : { attending: false, name: "", type: "adult" },
       song: formData.get("song") || "",
       notes: formData.get("notes") || "",
       submittedAt: new Date().toISOString()
@@ -78,5 +137,9 @@
       : "Thank you. Your RSVP has been saved locally, and we will miss you.";
     confirmation.classList.remove("hidden");
     rsvpForm.classList.add("hidden");
+  });
+
+  plusOneCheckbox.addEventListener("change", () => {
+    if (plusOneCheckbox.checked) plusOneName.focus();
   });
 })();
