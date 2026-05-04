@@ -16,7 +16,8 @@ Install Wrangler when you are ready to test Cloudflare Functions locally:
 
 ```sh
 npm install
-npx wrangler pages dev .
+npm run build
+npx wrangler pages dev dist
 ```
 
 Copy `.dev.vars.example` to `.dev.vars` and set a long random `ADMIN_SETUP_SECRET`.
@@ -57,3 +58,9 @@ The password is hashed before it is stored in D1.
 ## Notes
 
 The current frontend still has localStorage fallback behavior in several places. The backend routes are ready so the next step is wiring each page to call these API endpoints and use localStorage only as a local demo fallback.
+
+## Cloudflare Pages Build Settings
+
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Framework preset: `None`

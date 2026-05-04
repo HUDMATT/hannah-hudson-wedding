@@ -1,6 +1,6 @@
 name = "hannah-hudson-wedding"
 compatibility_date = "2026-05-03"
-pages_build_output_dir = "."
+pages_build_output_dir = "dist"
 
 [[d1_databases]]
 binding = "DB"
@@ -11,4 +11,3 @@ migrations_dir = "migrations"
 [[r2_buckets]]
 binding = "GALLERY_BUCKET"
 bucket_name = "hannah-hudson-wedding-gallery"
-

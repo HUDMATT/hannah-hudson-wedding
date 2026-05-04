@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler pages dev .",
+    "build": "node scripts/build-pages.js",
+    "dev": "npm run build && wrangler pages dev dist",
     "d1:migrate:local": "wrangler d1 migrations apply hannah-hudson-wedding-db --local",
     "d1:migrate:remote": "wrangler d1 migrations apply hannah-hudson-wedding-db --remote"
   },
