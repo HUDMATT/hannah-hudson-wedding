@@ -14,6 +14,12 @@
   const adminApp = $("#admin-app");
   const logoutButton = $("#admin-logout");
   let adminAuthenticated = false;
+  let householdsCache = [];
+  let rsvpsCache = [];
+
+  async function apiJson(url, options = {}) {
+    return HNW.apiJson(url, options);
+  }
 
   function setAdminLocked(isLocked) {
     document.body.classList.toggle("admin-locked", isLocked);
@@ -22,11 +28,11 @@
     adminApp.hidden = isLocked;
   }
 
-  function unlockAdmin() {
+  async function unlockAdmin() {
     adminAuthenticated = true;
     setAdminLocked(false);
     blankForm();
-    renderAll();
+    await renderAll();
   }
 
   function lockAdmin() {
@@ -42,7 +48,7 @@
   async function checkSession() {
     try {
       const response = await fetch("/api/auth/me", { credentials: "same-origin" });
-      if (response.ok) unlockAdmin();
+      if (response.ok) await unlockAdmin();
       else lockAdmin();
     } catch {
       loginError.textContent = "Admin authentication is waiting on Cloudflare Pages Functions. Deploy or run with Wrangler to use the backend login.";
@@ -61,57 +67,60 @@
     }[char]));
   }
 
+  function mapHousehold(household) {
+    return {
+      id: household.id,
+      household: household.household_name,
+      name: household.primary_name,
+      phone: household.phone,
+      email: household.email,
+      address: household.mailing_address,
+      plusOnes: household.allowed_plus_ones,
+      tags: household.tags,
+      notes: household.notes,
+      code: household.invite_code,
+      missingFields: household.missing_fields || getMissingFields({
+        phone: household.phone,
+        email: household.email,
+        address: household.mailing_address
+      }),
+      members: (household.guests || []).map((guest) => ({
+        id: guest.id,
+        name: guest.full_name,
+        type: guest.guest_type || "adult"
+      }))
+    };
+  }
+
+  function mapRsvp(rsvp) {
+    const attendees = rsvp.attendees || [];
+    const attendingMembers = attendees.filter((attendee) => attendee.attendee_type !== "plus_one").map((attendee) => ({
+      name: attendee.full_name,
+      type: attendee.attendee_type || "adult"
+    }));
+    const plusOneAttendee = attendees.find((attendee) => attendee.attendee_type === "plus_one");
+    return {
+      householdId: rsvp.household_id,
+      household: rsvp.household_name,
+      code: rsvp.invite_code,
+      status: rsvp.status,
+      count: rsvp.status === "attending" ? attendees.length : 0,
+      attendingMembers,
+      plusOne: plusOneAttendee
+        ? { attending: true, name: plusOneAttendee.full_name, type: "adult" }
+        : { attending: false, name: "", type: "adult" },
+      song: rsvp.song_request || "",
+      notes: rsvp.notes || "",
+      submittedAt: rsvp.submitted_at || rsvp.updated_at || ""
+    };
+  }
+
   function getMembers(guest) {
     const members = guest.members && guest.members.length ? guest.members : [guest.name];
     return members.map((member) => {
       if (typeof member === "string") return { name: member, type: "adult" };
-      return { name: member.name, type: member.type || "adult" };
+      return { id: member.id || "", name: member.name, type: member.type || "adult" };
     }).filter((member) => member.name);
-  }
-
-  function renderMemberEditor(members = []) {
-    const editableMembers = members.length ? members : [{ name: "", type: "adult" }];
-    memberEditorList.innerHTML = editableMembers.map((member, index) => `
-      <div class="member-row">
-        <label>Member name<input class="member-name" type="text" value="${escapeHTML(member.name)}" placeholder="Guest name"></label>
-        <label>Type<select class="member-type">
-          <option value="adult"${member.type !== "child" ? " selected" : ""}>Adult</option>
-          <option value="child"${member.type === "child" ? " selected" : ""}>Child</option>
-        </select></label>
-        <button class="button button--ghost member-remove" type="button" aria-label="Remove member">Remove</button>
-      </div>
-    `).join("");
-  }
-
-  function getGuests() {
-    return HNW.ensureGuests();
-  }
-
-  function getGuestInfoUpdates() {
-    return HNW.storage.get("hnwGuestInfoUpdates", []);
-  }
-
-  function getLatestInfoByCode() {
-    return getGuestInfoUpdates().reduce((latest, update) => {
-      if (!update.code) return latest;
-      const code = update.code.toUpperCase();
-      if (!latest[code] || new Date(update.updatedAt) > new Date(latest[code].updatedAt || 0)) {
-        latest[code] = update;
-      }
-      return latest;
-    }, {});
-  }
-
-  function withLatestInfo(guest, latestInfoByCode = getLatestInfoByCode()) {
-    const update = latestInfoByCode[String(guest.code || "").toUpperCase()];
-    if (!update) return guest;
-    return {
-      ...guest,
-      name: update.name || guest.name,
-      phone: update.phone || guest.phone,
-      email: update.email || guest.email,
-      address: update.address || guest.address
-    };
   }
 
   function getMissingFields(guest) {
@@ -127,13 +136,36 @@
     return `${origin}/guest-info.html?code=${encodeURIComponent(code)}`;
   }
 
-  function saveGuests(guests) {
-    // TODO: Replace local guest writes with Supabase upserts.
-    HNW.storage.set("hnwGuests", guests);
+  function renderMemberEditor(members = []) {
+    const editableMembers = members.length ? members : [{ id: "", name: "", type: "adult" }];
+    memberEditorList.innerHTML = editableMembers.map((member) => `
+      <div class="member-row">
+        <input class="member-id" type="hidden" value="${escapeHTML(member.id || "")}">
+        <label>Member name<input class="member-name" type="text" value="${escapeHTML(member.name)}" placeholder="Guest name"></label>
+        <label>Type<select class="member-type">
+          <option value="adult"${member.type !== "child" ? " selected" : ""}>Adult</option>
+          <option value="child"${member.type === "child" ? " selected" : ""}>Child</option>
+        </select></label>
+        <button class="button button--ghost member-remove" type="button" aria-label="Remove member">Remove</button>
+      </div>
+    `).join("");
+  }
+
+  async function loadData() {
+    const [guestData, rsvpData] = await Promise.all([
+      apiJson("/api/admin/guests"),
+      apiJson("/api/admin/rsvps")
+    ]);
+    householdsCache = (guestData.households || []).map(mapHousehold);
+    rsvpsCache = (rsvpData.rsvps || []).map(mapRsvp);
+  }
+
+  function getGuests() {
+    return householdsCache;
   }
 
   function getRsvps() {
-    return HNW.storage.get("hnwRsvps", []);
+    return rsvpsCache;
   }
 
   function blankForm() {
@@ -145,11 +177,15 @@
   }
 
   function renderGuests() {
-    const latestInfoByCode = getLatestInfoByCode();
     const guests = getGuests();
-    tableBody.innerHTML = guests.map((storedGuest) => {
-      const guest = withLatestInfo(storedGuest, latestInfoByCode);
-      const members = getMembers(storedGuest);
+    if (!guests.length) {
+      tableBody.innerHTML = `<tr><td colspan="5">No households have been added yet.</td></tr>`;
+      linkSelect.innerHTML = "";
+      return;
+    }
+
+    tableBody.innerHTML = guests.map((guest) => {
+      const members = getMembers(guest);
       const adultCount = members.filter((member) => member.type !== "child").length;
       const childCount = members.filter((member) => member.type === "child").length;
       return `
@@ -158,18 +194,16 @@
         <td data-label="Contact">${escapeHTML(guest.phone || "No phone")}<br>${escapeHTML(guest.email || "No email")}<br><small>${escapeHTML(guest.address || "No address")}</small></td>
         <td data-label="Plus Ones">${guest.plusOnes || 0}<br><small>${adultCount} adult${adultCount === 1 ? "" : "s"} · ${childCount} child${childCount === 1 ? "" : "ren"}</small></td>
         <td data-label="Tags">${escapeHTML(guest.tags || "")}<br><small>${members.map((member) => `${escapeHTML(member.name)} (${member.type})`).join(", ")}</small></td>
-        <td data-label="Actions"><div class="table-actions"><button class="button button--ghost" type="button" data-edit="${guest.id}">Edit</button><button class="button button--primary" type="button" data-delete="${guest.id}">Delete</button></div></td>
+        <td data-label="Actions"><div class="table-actions"><button class="button button--ghost" type="button" data-edit="${escapeHTML(guest.id)}">Edit</button><button class="button button--primary" type="button" data-delete="${escapeHTML(guest.id)}">Delete</button></div></td>
       </tr>
     `;
     }).join("");
 
-    linkSelect.innerHTML = guests.map((guest) => `<option value="${guest.id}">${guest.household} (${guest.code})</option>`).join("");
+    linkSelect.innerHTML = guests.map((guest) => `<option value="${escapeHTML(guest.id)}">${escapeHTML(guest.household)} (${escapeHTML(guest.code)})</option>`).join("");
   }
 
   function renderDashboard() {
-    const latestInfoByCode = getLatestInfoByCode();
-    const storedGuests = getGuests();
-    const guests = storedGuests.map((guest) => withLatestInfo(guest, latestInfoByCode));
+    const guests = getGuests();
     const rsvps = getRsvps();
     const attending = rsvps.filter((item) => item.status === "attending");
     const declined = rsvps.filter((item) => item.status === "declined");
@@ -182,12 +216,13 @@
     const adultAttending = attendingMembers.filter((member) => member.type !== "child").length + attendingPlusOnes.length;
     const childAttending = attendingMembers.filter((member) => member.type === "child").length;
     const missingInfoCount = guests.filter((guest) => getMissingFields(guest).length > 0).length;
+    const respondedHouseholdIds = new Set(rsvps.map((rsvp) => rsvp.householdId));
 
     dashboard.innerHTML = `
       <article class="card metric"><span class="card__label">Total invited</span><strong>${invitedTotal}</strong></article>
       <article class="card metric"><span class="card__label">Attending</span><strong>${attending.reduce((sum, item) => sum + Number(item.count || 0), 0)}</strong></article>
       <article class="card metric"><span class="card__label">Declined</span><strong>${declined.length}</strong></article>
-      <article class="card metric"><span class="card__label">No response</span><strong>${Math.max(guests.length - rsvps.length, 0)}</strong></article>
+      <article class="card metric"><span class="card__label">No response</span><strong>${Math.max(guests.filter((guest) => !respondedHouseholdIds.has(guest.id)).length, 0)}</strong></article>
       <article class="card metric"><span class="card__label">Missing info</span><strong>${missingInfoCount}</strong></article>
       <article class="card"><h3>Invited Breakdown</h3><ul class="summary-list"><li>Adults: ${adultInvited}</li><li>Children: ${childInvited}</li><li>Possible plus ones: ${guests.reduce((sum, guest) => sum + Number(guest.plusOnes || 0), 0)}</li></ul></article>
       <article class="card"><h3>Attending Breakdown</h3><ul class="summary-list"><li>Adults: ${adultAttending}</li><li>Children: ${childAttending}</li><li>Plus ones: ${attendingPlusOnes.length}</li></ul></article>
@@ -195,8 +230,7 @@
   }
 
   function renderMissingInfo() {
-    const latestInfoByCode = getLatestInfoByCode();
-    const missingGuests = getGuests().map((guest) => withLatestInfo(guest, latestInfoByCode)).map((guest) => ({
+    const missingGuests = getGuests().map((guest) => ({
       ...guest,
       missingFields: getMissingFields(guest)
     })).filter((guest) => guest.missingFields.length > 0);
@@ -230,7 +264,7 @@
     $("#guest-form-title").textContent = "Edit guest";
     $("#guest-id").value = guest.id;
     $("#guest-household").value = guest.household;
-    $("#guest-name").value = guest.name;
+    $("#guest-name").value = guest.name || "";
     $("#guest-code").value = guest.code;
     $("#guest-phone").value = guest.phone || "";
     $("#guest-email").value = guest.email || "";
@@ -241,28 +275,29 @@
     guestForm.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function deleteGuest(id) {
-    saveGuests(getGuests().filter((guest) => guest.id !== id));
-    renderAll();
+  async function deleteGuest(id) {
+    await apiJson(`/api/admin/guests?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    await renderAll();
   }
 
   function guestFromForm() {
     const members = Array.from(memberEditorList.querySelectorAll(".member-row")).map((row) => ({
+      id: row.querySelector(".member-id").value.trim(),
       name: row.querySelector(".member-name").value.trim(),
       type: row.querySelector(".member-type").value
     })).filter((member) => member.name);
     const primaryName = $("#guest-name").value.trim();
     return {
-      id: $("#guest-id").value || `g-${Date.now()}`,
-      household: $("#guest-household").value.trim(),
-      name: primaryName,
-      code: $("#guest-code").value.trim().toUpperCase(),
+      id: $("#guest-id").value,
+      householdName: $("#guest-household").value.trim(),
+      primaryName,
+      inviteCode: $("#guest-code").value.trim().toUpperCase(),
       phone: $("#guest-phone").value.trim(),
       email: $("#guest-email").value.trim(),
       address: $("#guest-address").value.trim(),
-      plusOnes: Number($("#guest-plusones").value || 0),
+      allowedPlusOnes: Number($("#guest-plusones").value || 0),
       tags: $("#guest-tags").value.trim(),
-      members: members.length ? members : [{ name: primaryName, type: "adult" }]
+      guests: members.length ? members : [{ name: primaryName, type: "adult" }]
     };
   }
 
@@ -277,29 +312,42 @@
     URL.revokeObjectURL(url);
   }
 
-  function renderAll() {
+  async function renderAll() {
+    dashboard.innerHTML = `<div class="notice">Loading dashboard...</div>`;
+    missingInfoList.innerHTML = `<div class="notice">Loading missing information...</div>`;
+    await loadData();
     renderGuests();
     renderDashboard();
     renderMissingInfo();
   }
 
-  guestForm.addEventListener("submit", (event) => {
+  guestForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const guest = guestFromForm();
-    const guests = getGuests();
-    const index = guests.findIndex((item) => item.id === guest.id);
-    if (index >= 0) guests[index] = guest;
-    else guests.push(guest);
-    saveGuests(guests);
-    blankForm();
-    renderAll();
+    const submitButton = guestForm.querySelector("button[type='submit']");
+    submitButton.disabled = true;
+    submitButton.textContent = "Saving...";
+    try {
+      await apiJson("/api/admin/guests", {
+        method: "POST",
+        body: JSON.stringify(guestFromForm())
+      });
+      blankForm();
+      await renderAll();
+    } catch (err) {
+      alert(err.message || "Could not save guest.");
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Save Guest";
+    }
   });
 
-  tableBody.addEventListener("click", (event) => {
+  tableBody.addEventListener("click", async (event) => {
     const editId = event.target.dataset.edit;
     const deleteId = event.target.dataset.delete;
     if (editId) fillForm(editId);
-    if (deleteId) deleteGuest(deleteId);
+    if (deleteId && window.confirm("Delete this household?")) {
+      await deleteGuest(deleteId);
+    }
   });
 
   missingInfoList.addEventListener("click", (event) => {
@@ -321,33 +369,88 @@
   $("#reset-guest-form").addEventListener("click", blankForm);
   $("#add-member").addEventListener("click", () => {
     const members = Array.from(memberEditorList.querySelectorAll(".member-row")).map((row) => ({
+      id: row.querySelector(".member-id").value.trim(),
       name: row.querySelector(".member-name").value.trim(),
       type: row.querySelector(".member-type").value
     }));
-    members.push({ name: "", type: "adult" });
+    members.push({ id: "", name: "", type: "adult" });
     renderMemberEditor(members);
   });
   memberEditorList.addEventListener("click", (event) => {
     if (!event.target.classList.contains("member-remove")) return;
     const rows = Array.from(memberEditorList.querySelectorAll(".member-row"));
     if (rows.length === 1) {
+      rows[0].querySelector(".member-id").value = "";
       rows[0].querySelector(".member-name").value = "";
       rows[0].querySelector(".member-type").value = "adult";
       return;
     }
     event.target.closest(".member-row").remove();
   });
-  $("#seed-demo-data").addEventListener("click", () => {
-    HNW.storage.set("hnwGuests", HNW.demoGuests);
-    renderAll();
+
+  $("#seed-demo-data").addEventListener("click", async () => {
+    const demoHouseholds = [
+      {
+        id: "demo-fall-101",
+        householdName: "Martini Family",
+        primaryName: "Lena Martini",
+        phone: "555-0101",
+        email: "lena@example.com",
+        address: "123 Placeholder Lane, City, ST",
+        allowedPlusOnes: 2,
+        tags: "family, rehearsal",
+        inviteCode: "FALL101",
+        guests: [
+          { name: "Lena Martini", type: "adult" },
+          { name: "Marco Martini", type: "adult" },
+          { name: "Sofia Martini", type: "child" }
+        ]
+      },
+      {
+        id: "demo-fall-102",
+        householdName: "Matthews Friends",
+        primaryName: "Jordan Blake",
+        phone: "555-0102",
+        email: "jordan@example.com",
+        address: "456 Sample Street, City, ST",
+        allowedPlusOnes: 1,
+        tags: "friends",
+        inviteCode: "FALL102",
+        guests: [
+          { name: "Jordan Blake", type: "adult" },
+          { name: "Taylor Reed", type: "adult" }
+        ]
+      },
+      {
+        id: "demo-fall-103",
+        householdName: "Avery Household",
+        primaryName: "Morgan Avery",
+        phone: "555-0103",
+        email: "morgan@example.com",
+        address: "789 Autumn Road, City, ST",
+        allowedPlusOnes: 0,
+        tags: "coworkers",
+        inviteCode: "FALL103",
+        guests: [
+          { name: "Morgan Avery", type: "adult" }
+        ]
+      }
+    ];
+
+    if (!window.confirm("Add demo households to D1? Existing households with the same IDs will not be reset.")) return;
+    for (const household of demoHouseholds) {
+      await apiJson("/api/admin/guests", {
+        method: "POST",
+        body: JSON.stringify(household)
+      });
+    }
+    await renderAll();
   });
 
   $("#generate-link").addEventListener("click", () => {
     const guest = getGuests().find((item) => item.id === linkSelect.value);
     if (!guest) return;
-    const code = guest.code || Math.random().toString(36).slice(2, 8).toUpperCase();
-    const url = buildGuestInfoUrl(code);
-    $("#generated-link").value = url;
+    $("#generated-link").value = buildGuestInfoUrl(guest.code);
     $("#generated-link-wrap").classList.remove("hidden");
   });
 
@@ -364,11 +467,9 @@
   });
 
   $("#export-guests").addEventListener("click", () => {
-    const latestInfoByCode = getLatestInfoByCode();
     const rows = [["Household", "Primary Name", "Members", "Adult Count", "Child Count", "Missing Fields", "Phone", "Email", "Address", "Plus Ones", "Tags", "Code"]];
-    getGuests().forEach((storedGuest) => {
-      const guest = withLatestInfo(storedGuest, latestInfoByCode);
-      const members = getMembers(storedGuest);
+    getGuests().forEach((guest) => {
+      const members = getMembers(guest);
       rows.push([
         guest.household,
         guest.name,
@@ -420,7 +521,7 @@
       });
 
       if (response.ok) {
-        unlockAdmin();
+        await unlockAdmin();
         return;
       }
     } catch {
@@ -449,9 +550,6 @@
     checkSession();
   }
 
-  window.addEventListener("storage", (event) => {
-    if (isAdminAuthenticated() && ["hnwGuestInfoUpdates", "hnwGuests"].includes(event.key)) renderAll();
-  });
   window.addEventListener("focus", () => {
     if (isAdminAuthenticated()) renderAll();
   });

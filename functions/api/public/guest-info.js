@@ -20,7 +20,7 @@ export async function onRequestPost(context) {
   const household = await getHouseholdByCode(db, body.code);
   if (!household) return error("Invite code not found.", 404);
 
-  await db.batch([
+  const statements = [
     db.prepare(`
       INSERT INTO guest_info_updates (
         id, household_id, invite_code, submitted_name, submitted_phone,
@@ -45,7 +45,24 @@ export async function onRequestPost(context) {
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(body.name || "", body.phone || "", body.email || "", body.address || "", household.id)
-  ]);
+  ];
+
+  const submittedMembers = String(body.householdMembers || "")
+    .split(/\n|,/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  if (submittedMembers.length) {
+    statements.push(db.prepare("DELETE FROM guests WHERE household_id = ?").bind(household.id));
+    submittedMembers.forEach((name, index) => {
+      statements.push(db.prepare(`
+        INSERT INTO guests (id, household_id, full_name, guest_type, sort_order)
+        VALUES (?, ?, ?, 'adult', ?)
+      `).bind(crypto.randomUUID(), household.id, name, index));
+    });
+  }
+
+  await db.batch(statements);
 
   return json({ ok: true });
 }

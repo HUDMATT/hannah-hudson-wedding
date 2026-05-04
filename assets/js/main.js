@@ -1,73 +1,17 @@
 const HNW = window.HNW || {};
 
-HNW.storage = {
-  get(key, fallback) {
-    try {
-      return JSON.parse(localStorage.getItem(key)) ?? fallback;
-    } catch {
-      return fallback;
+HNW.apiJson = async function apiJson(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
     }
-  },
-  set(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-  }
-};
-
-HNW.demoGuests = [
-  {
-    id: "g-101",
-    household: "Martini Family",
-    name: "Lena Martini",
-    phone: "555-0101",
-    email: "lena@example.com",
-    address: "123 Placeholder Lane, City, ST",
-    plusOnes: 2,
-    tags: "family, rehearsal",
-    code: "FALL101",
-    members: [
-      { name: "Lena Martini", type: "adult" },
-      { name: "Marco Martini", type: "adult" },
-      { name: "Sofia Martini", type: "child" }
-    ]
-  },
-  {
-    id: "g-102",
-    household: "Matthews Friends",
-    name: "Jordan Blake",
-    phone: "555-0102",
-    email: "jordan@example.com",
-    address: "456 Sample Street, City, ST",
-    plusOnes: 1,
-    tags: "friends",
-    code: "FALL102",
-    members: [
-      { name: "Jordan Blake", type: "adult" },
-      { name: "Taylor Reed", type: "adult" }
-    ]
-  },
-  {
-    id: "g-103",
-    household: "Avery Household",
-    name: "Morgan Avery",
-    phone: "555-0103",
-    email: "morgan@example.com",
-    address: "789 Autumn Road, City, ST",
-    plusOnes: 0,
-    tags: "coworkers",
-    code: "FALL103",
-    members: [
-      { name: "Morgan Avery", type: "adult" }
-    ]
-  }
-];
-
-HNW.ensureGuests = function ensureGuests() {
-  const guests = HNW.storage.get("hnwGuests", null);
-  if (!guests || !Array.isArray(guests) || guests.length === 0) {
-    HNW.storage.set("hnwGuests", HNW.demoGuests);
-    return HNW.demoGuests;
-  }
-  return guests;
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Something went wrong.");
+  return data;
 };
 
 function initNavigation() {
@@ -167,6 +111,7 @@ function initGuestInfoForm() {
   const emailInput = document.querySelector("#info-email");
   const addressInput = document.querySelector("#info-address");
   const householdInput = document.querySelector("#info-household");
+  let currentHousehold = null;
 
   const escapeHTML = (value) => String(value || "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -176,14 +121,10 @@ function initGuestInfoForm() {
     "'": "&#39;"
   }[char]));
 
-  const getMembers = (guest) => {
-    const members = guest && guest.members && guest.members.length ? guest.members : [];
-    return members.map((member) => typeof member === "string" ? member : member.name).filter(Boolean);
+  const getMembers = (household) => {
+    const members = household && household.guests && household.guests.length ? household.guests : [];
+    return members.map((member) => member.full_name || member.name).filter(Boolean);
   };
-
-  const findGuestByCode = (inviteCode) => HNW.ensureGuests().find((guest) => (
-    String(guest.code || "").toLowerCase() === String(inviteCode || "").toLowerCase()
-  ));
 
   const setFieldVisibility = (id, value, requiredWhenVisible = false) => {
     const wrapper = document.querySelector(`#${id}-wrap`);
@@ -196,21 +137,26 @@ function initGuestInfoForm() {
     return hasValue;
   };
 
-  if (code) {
-    codeInput.value = code;
-    const guest = findGuestByCode(code);
-    const householdMembers = getMembers(guest).join("\n");
+  async function loadGuestInfo(inviteCode) {
+    codeInput.value = inviteCode;
+    if (!inviteCode) {
+      note.textContent = "Please complete the details below. If you were sent a personalized link, the invite code should appear automatically.";
+      nameInput.required = true;
+      return;
+    }
 
-    note.textContent = guest
-      ? `We found your household using invite code ${code}. Please complete only the missing details below.`
-      : `Invite code ${code} was detected. Please complete the details below.`;
+    try {
+      const data = await HNW.apiJson(`/api/public/guest-info?code=${encodeURIComponent(inviteCode)}`);
+      currentHousehold = data.household;
+      const householdMembers = getMembers(currentHousehold).join("\n");
 
-    if (guest) {
+      note.textContent = `We found your household using invite code ${inviteCode}. Please complete only the missing details below.`;
+
       const completeFields = [
-        ["Name", guest.name],
-        ["Phone", guest.phone],
-        ["Email", guest.email],
-        ["Mailing address", guest.address],
+        ["Name", currentHousehold.primary_name],
+        ["Phone", currentHousehold.phone],
+        ["Email", currentHousehold.email],
+        ["Mailing address", currentHousehold.mailing_address],
         ["Household members", householdMembers]
       ].filter((field) => String(field[1] || "").trim());
 
@@ -220,69 +166,61 @@ function initGuestInfoForm() {
       }
 
       const fieldStatus = [
-        setFieldVisibility("info-name", guest.name, true),
-        setFieldVisibility("info-phone", guest.phone, true),
-        setFieldVisibility("info-email", guest.email, true),
-        setFieldVisibility("info-address", guest.address, true),
+        setFieldVisibility("info-name", currentHousehold.primary_name, true),
+        setFieldVisibility("info-phone", currentHousehold.phone, true),
+        setFieldVisibility("info-email", currentHousehold.email, true),
+        setFieldVisibility("info-address", currentHousehold.mailing_address, true),
         setFieldVisibility("info-household", householdMembers, true)
       ];
 
       if (fieldStatus.every(Boolean)) {
         allInfoComplete.classList.remove("hidden");
       }
-    } else {
+    } catch (err) {
+      note.textContent = err.message || `Invite code ${inviteCode} was not found. Please confirm the link and try again.`;
       nameInput.required = true;
     }
-  } else {
-    note.textContent = "Please complete the details below. If you were sent a personalized link, the invite code should appear automatically.";
-    nameInput.required = true;
   }
 
-  form.addEventListener("submit", (event) => {
+  loadGuestInfo(code);
+
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const currentGuest = findGuestByCode(codeInput.value.trim());
+    const submitButton = form.querySelector("button[type='submit']");
+    const householdMembersVisible = !document.querySelector("#info-household-wrap").classList.contains("hidden");
     const record = {
       code: codeInput.value.trim(),
-      name: nameInput.value.trim() || (currentGuest && currentGuest.name) || "",
-      phone: phoneInput.value.trim() || (currentGuest && currentGuest.phone) || "",
-      email: emailInput.value.trim() || (currentGuest && currentGuest.email) || "",
-      address: addressInput.value.trim() || (currentGuest && currentGuest.address) || "",
-      household: householdInput.value.trim() || getMembers(currentGuest).join("\n"),
-      notes: "",
-      updatedAt: new Date().toISOString()
+      name: nameInput.value.trim() || (currentHousehold && currentHousehold.primary_name) || "",
+      phone: phoneInput.value.trim() || (currentHousehold && currentHousehold.phone) || "",
+      email: emailInput.value.trim() || (currentHousehold && currentHousehold.email) || "",
+      address: addressInput.value.trim() || (currentHousehold && currentHousehold.mailing_address) || "",
+      householdMembers: householdMembersVisible ? householdInput.value.trim() : ""
     };
 
-    // TODO: Send guest info updates to the backend instead of localStorage.
-    const updates = HNW.storage.get("hnwGuestInfoUpdates", []);
-    updates.push(record);
-    HNW.storage.set("hnwGuestInfoUpdates", updates);
+    submitButton.disabled = true;
+    submitButton.textContent = "Saving...";
 
-    const guests = HNW.storage.get("hnwGuests", []);
-    const guestIndex = guests.findIndex((guest) => String(guest.code || "").toLowerCase() === record.code.toLowerCase());
-    if (guestIndex >= 0) {
-      const householdWasVisible = !document.querySelector("#info-household-wrap").classList.contains("hidden");
-      guests[guestIndex] = {
-        ...guests[guestIndex],
-        name: record.name || guests[guestIndex].name,
-        phone: record.phone || guests[guestIndex].phone,
-        email: record.email || guests[guestIndex].email,
-        address: record.address || guests[guestIndex].address,
-        members: householdWasVisible && record.household
-          ? record.household.split(/\n|,/).map((name) => name.trim()).filter(Boolean).map((name) => ({ name, type: "adult" }))
-          : guests[guestIndex].members
-      };
-      HNW.storage.set("hnwGuests", guests);
+    try {
+      await HNW.apiJson("/api/public/guest-info", {
+        method: "POST",
+        body: JSON.stringify(record)
+      });
+      confirmation.textContent = "Thank you. Your guest information has been saved.";
+      confirmation.classList.remove("hidden");
+      form.reset();
+      codeInput.value = record.code;
+      if (record.code) await loadGuestInfo(record.code);
+    } catch (err) {
+      confirmation.textContent = err.message || "We could not save your information. Please try again.";
+      confirmation.classList.remove("hidden");
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Submit Information";
     }
-
-    confirmation.textContent = "Thank you. Your guest information has been saved locally for now.";
-    confirmation.classList.remove("hidden");
-    form.reset();
-    codeInput.value = record.code;
   });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  HNW.ensureGuests();
   initNavigation();
   initLightbox();
   initCountdown();

@@ -44,7 +44,7 @@
         <div class="container narrow">
           <p class="kicker">Admin</p>
           <h1>Wedding dashboard</h1>
-          <p>Front-end-only tools using mock data and localStorage. TODO: replace these storage helpers with Supabase tables and row-level access.</p>
+          <p>Manage guest households, RSVPs, and missing information from the Cloudflare D1 database.</p>
           <button class="button button--ghost" type="button" id="admin-logout">Log Out</button>
         </div>
       </section>
@@ -94,7 +94,7 @@
           <div class="card">
             <div class="card-header">
               <div><p class="kicker">Guest List</p><h2>Households</h2></div>
-              <button class="button button--secondary" type="button" id="seed-demo-data">Reset Demo Data</button>
+              <button class="button button--secondary" type="button" id="seed-demo-data">Add Demo Data</button>
             </div>
             <div class="table-wrap">
               <table class="guest-table">
@@ -119,7 +119,7 @@
           </div>
           <div class="card form-card">
             <h2>Export</h2>
-            <p>Download CSV files from the current localStorage data.</p>
+            <p>Download CSV files from the current Cloudflare D1 data.</p>
             <div class="button-row">
               <button class="button button--primary" type="button" id="export-guests">Export Guest CSV</button>
               <button class="button button--secondary" type="button" id="export-rsvps">Export RSVP CSV</button>

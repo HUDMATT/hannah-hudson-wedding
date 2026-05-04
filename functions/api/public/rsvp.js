@@ -15,7 +15,11 @@ export async function onRequestPost(context) {
   const attendees = Array.isArray(body.attendees) ? body.attendees : [];
   const plusOne = body.plusOne && body.plusOne.name ? body.plusOne : null;
 
-  await db.prepare("DELETE FROM rsvps WHERE household_id = ?").bind(household.id).run();
+  const existingRsvp = await db.prepare("SELECT id FROM rsvps WHERE household_id = ?").bind(household.id).first();
+  if (existingRsvp) {
+    await db.prepare("DELETE FROM rsvp_attendees WHERE rsvp_id = ?").bind(existingRsvp.id).run();
+    await db.prepare("DELETE FROM rsvps WHERE id = ?").bind(existingRsvp.id).run();
+  }
   await db.prepare(`
     INSERT INTO rsvps (id, household_id, status, song_request, notes)
     VALUES (?, ?, ?, ?, ?)

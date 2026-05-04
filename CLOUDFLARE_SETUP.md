@@ -57,7 +57,7 @@ The password is hashed before it is stored in D1.
 
 ## Notes
 
-The current frontend still has localStorage fallback behavior in several places. The backend routes are ready so the next step is wiring each page to call these API endpoints and use localStorage only as a local demo fallback.
+The RSVP, guest info, and admin screens use the Cloudflare API routes directly. Guest households, RSVPs, and guest information updates are stored in D1.
 
 ## Cloudflare Pages Build Settings
 

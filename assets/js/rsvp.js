@@ -9,7 +9,7 @@
   const plusOneCheckbox = document.querySelector("#plus-one-attending");
   const plusOneName = document.querySelector("#plus-one-name");
   const plusOneHelp = document.querySelector("#plus-one-help");
-  let selectedGuest = null;
+  let selectedHousehold = null;
 
   function escapeHTML(value) {
     return String(value || "").replace(/[&<>"']/g, (char) => ({
@@ -21,42 +21,62 @@
     }[char]));
   }
 
-  function getMembers(guest) {
-    const members = guest.members && guest.members.length ? guest.members : [guest.name];
-    return members.map((member) => {
-      if (typeof member === "string") return { name: member, type: "adult" };
-      return { name: member.name, type: member.type || "adult" };
-    }).filter((member) => member.name);
-  }
-
-  function normalize(value) {
-    return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  }
-
-  function findGuest(query) {
-    const needle = normalize(query);
-    return HNW.ensureGuests().find((guest) => {
-      const haystack = [
-        guest.household,
-        guest.name,
-        guest.phone,
-        guest.email,
-        guest.code,
-        ...getMembers(guest).map((member) => member.name)
-      ].map(normalize).join(" ");
-      return haystack.includes(needle);
+  async function apiJson(url, options = {}) {
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      }
     });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Something went wrong.");
+    return data;
   }
 
-  function showGuest(guest) {
-    const members = getMembers(guest);
-    const plusOneCount = Number(guest.plusOnes || 0);
-    selectedGuest = guest;
-    document.querySelector("#household-code").value = guest.code;
-    document.querySelector("#household-summary").textContent = `${guest.household}: ${members.map((member) => member.name).join(", ")}.${plusOneCount ? ` Plus ones allowed: ${plusOneCount}.` : ""}`;
+  function mapHousehold(household) {
+    return {
+      id: household.id,
+      household: household.household_name,
+      name: household.primary_name,
+      phone: household.phone,
+      email: household.email,
+      address: household.mailing_address,
+      plusOnes: household.allowed_plus_ones,
+      tags: household.tags,
+      code: household.invite_code,
+      members: (household.guests || []).map((guest) => ({
+        id: guest.id,
+        name: guest.full_name,
+        type: guest.guest_type || "adult"
+      }))
+    };
+  }
+
+  function getMembers(household) {
+    return household.members && household.members.length ? household.members : [{
+      id: "",
+      name: household.name,
+      type: "adult"
+    }];
+  }
+
+  function setLoading(isLoading) {
+    const button = searchForm.querySelector("button[type='submit']");
+    button.disabled = isLoading;
+    button.textContent = isLoading ? "Searching..." : "Search";
+  }
+
+  function showGuest(household) {
+    const members = getMembers(household);
+    const plusOneCount = Number(household.plusOnes || 0);
+    selectedHousehold = household;
+    document.querySelector("#household-code").value = household.code;
+    document.querySelector("#household-summary").textContent = `${household.household}: ${members.map((member) => member.name).join(", ")}.${plusOneCount ? ` Plus ones allowed: ${plusOneCount}.` : ""}`;
     document.querySelector("#invited-members").innerHTML = members.map((member) => `
       <label class="checkbox-card">
-        <input type="checkbox" name="attendingMembers" value="${escapeHTML(member.name)}" data-member-type="${escapeHTML(member.type)}" checked>
+        <input type="checkbox" name="attendingMembers" value="${escapeHTML(member.name)}" data-member-id="${escapeHTML(member.id)}" data-member-type="${escapeHTML(member.type)}" checked>
         <span>
           <strong>${escapeHTML(member.name)}</strong>
           <small>${member.type === "child" ? "Child" : "Adult"}</small>
@@ -67,41 +87,52 @@
     plusOneName.value = "";
     plusOneName.required = false;
     plusOneHelp.textContent = plusOneCount > 1
-      ? `This form currently collects one plus one name. Additional guest names can go in the notes.`
+      ? "This form currently collects one plus one name. Additional guest names can go in the notes."
       : "Please share their name below.";
     plusOneFieldset.classList.toggle("hidden", plusOneCount <= 0);
-    matchResult.innerHTML = `<div class="card"><p class="kicker">Invitation Found</p><h2>${escapeHTML(guest.household)}</h2><p>${members.map((member) => `${escapeHTML(member.name)} (${member.type === "child" ? "child" : "adult"})`).join(", ")}</p><p>Invite code: <strong>${escapeHTML(guest.code)}</strong></p></div>`;
+    matchResult.innerHTML = `<div class="card"><p class="kicker">Invitation Found</p><h2>${escapeHTML(household.household)}</h2><p>${members.map((member) => `${escapeHTML(member.name)} (${member.type === "child" ? "child" : "adult"})`).join(", ")}</p><p>Invite code: <strong>${escapeHTML(household.code)}</strong></p></div>`;
     rsvpForm.classList.remove("hidden");
     confirmation.classList.add("hidden");
   }
 
-  searchForm.addEventListener("submit", (event) => {
+  searchForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const query = document.querySelector("#guest-search").value;
-    const guest = findGuest(query);
-    if (!guest) {
-      selectedGuest = null;
-      rsvpForm.classList.add("hidden");
-      matchResult.innerHTML = `<div class="notice">No invitation matched that search. Try a household name, phone number, or invite code.</div>`;
-      return;
+    const query = document.querySelector("#guest-search").value.trim();
+    if (!query) return;
+
+    setLoading(true);
+    selectedHousehold = null;
+    rsvpForm.classList.add("hidden");
+    confirmation.classList.add("hidden");
+
+    try {
+      const data = await apiJson(`/api/public/rsvp-search?q=${encodeURIComponent(query)}`);
+      showGuest(mapHousehold(data.household));
+    } catch (err) {
+      matchResult.innerHTML = `<div class="notice">${escapeHTML(err.message || "No invitation matched that search. Try a household name, phone number, or invite code.")}</div>`;
+    } finally {
+      setLoading(false);
     }
-    showGuest(guest);
   });
 
-  rsvpForm.addEventListener("submit", (event) => {
+  rsvpForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!selectedGuest) return;
+    if (!selectedHousehold) return;
 
+    const submitButton = rsvpForm.querySelector("button[type='submit']");
     const formData = new FormData(rsvpForm);
     const attendingMembers = Array.from(rsvpForm.querySelectorAll('input[name="attendingMembers"]:checked')).map((input) => ({
+      guestId: input.dataset.memberId,
       name: input.value,
       type: input.dataset.memberType || "adult"
     }));
+
     if (formData.get("status") === "attending" && attendingMembers.length === 0) {
       confirmation.textContent = "Please check at least one invited guest who will attend, or choose regretfully declining.";
       confirmation.classList.remove("hidden");
       return;
     }
+
     const plusOne = {
       attending: formData.get("status") === "attending" && plusOneCheckbox.checked,
       name: plusOneName.value.trim(),
@@ -113,33 +144,40 @@
       plusOneName.focus();
       return;
     }
-    const response = {
-      guestId: selectedGuest.id,
-      household: selectedGuest.household,
-      code: selectedGuest.code,
+
+    const payload = {
+      code: selectedHousehold.code,
       status: formData.get("status"),
-      count: formData.get("status") === "attending" ? attendingMembers.length + (plusOne.attending ? 1 : 0) : 0,
-      attendingMembers: formData.get("status") === "attending" ? attendingMembers : [],
-      plusOne: plusOne.attending ? plusOne : { attending: false, name: "", type: "adult" },
+      attendees: formData.get("status") === "attending" ? attendingMembers : [],
+      plusOne: plusOne.attending ? plusOne : null,
       song: formData.get("song") || "",
-      notes: formData.get("notes") || "",
-      submittedAt: new Date().toISOString()
+      notes: formData.get("notes") || ""
     };
 
-    // TODO: Replace local RSVP persistence with Supabase insert/update.
-    const rsvps = HNW.storage.get("hnwRsvps", []);
-    const withoutCurrent = rsvps.filter((item) => item.guestId !== response.guestId);
-    withoutCurrent.push(response);
-    HNW.storage.set("hnwRsvps", withoutCurrent);
+    submitButton.disabled = true;
+    submitButton.textContent = "Saving...";
 
-    confirmation.textContent = response.status === "attending"
-      ? "Thank you. Your RSVP has been saved locally, and we are so excited to celebrate with you."
-      : "Thank you. Your RSVP has been saved locally, and we will miss you.";
-    confirmation.classList.remove("hidden");
-    rsvpForm.classList.add("hidden");
+    try {
+      await apiJson("/api/public/rsvp", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      confirmation.textContent = payload.status === "attending"
+        ? "Thank you. Your RSVP has been saved, and we are so excited to celebrate with you."
+        : "Thank you. Your RSVP has been saved, and we will miss you.";
+      confirmation.classList.remove("hidden");
+      rsvpForm.classList.add("hidden");
+    } catch (err) {
+      confirmation.textContent = err.message || "We could not save your RSVP. Please try again.";
+      confirmation.classList.remove("hidden");
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Submit RSVP";
+    }
   });
 
   plusOneCheckbox.addEventListener("change", () => {
+    plusOneName.required = plusOneCheckbox.checked;
     if (plusOneCheckbox.checked) plusOneName.focus();
   });
 })();
