@@ -123,9 +123,8 @@
   }
 
   function buildGuestInfoUrl(code) {
-    const basePath = window.location.pathname.replace("admin.html", "");
     const origin = window.location.origin === "null" ? "" : window.location.origin;
-    return `${origin}${basePath}guest-info.html?code=${encodeURIComponent(code)}`;
+    return `${origin}/guest-info.html?code=${encodeURIComponent(code)}`;
   }
 
   function saveGuests(guests) {
