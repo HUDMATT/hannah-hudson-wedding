@@ -25,6 +25,11 @@ export function requireDb(env) {
   return env.DB;
 }
 
+export function requireBucket(env) {
+  if (!env.GALLERY_BUCKET) throw new Error("Missing R2 binding: GALLERY_BUCKET");
+  return env.GALLERY_BUCKET;
+}
+
 export function sameOriginOrNoOrigin(request) {
   const origin = request.headers.get("Origin");
   if (!origin) return true;

@@ -35,18 +35,29 @@ function initNavigation() {
 function initLightbox() {
   const lightbox = document.querySelector("#lightbox");
   if (!lightbox) return;
+  if (lightbox.dataset.bound === "true") return;
+  lightbox.dataset.bound = "true";
 
   const image = lightbox.querySelector(".lightbox__image");
   const title = lightbox.querySelector("#lightbox-title");
   const close = lightbox.querySelector(".lightbox__close");
 
-  document.querySelectorAll(".gallery-item").forEach((item) => {
-    item.addEventListener("click", () => {
+  document.addEventListener("click", (event) => {
+    const item = event.target.closest(".gallery-item");
+    if (!item) return;
+    const imageUrl = item.dataset.imageUrl;
+    if (imageUrl) {
+      image.className = "lightbox__image";
+      image.style.backgroundImage = `url("${imageUrl.replaceAll('"', "%22")}")`;
+      image.setAttribute("aria-label", item.dataset.alt || item.dataset.title || "Selected gallery photo");
+    } else {
+      image.style.backgroundImage = "";
       image.className = `lightbox__image ${Array.from(item.classList).filter((name) => name.startsWith("photo-card--")).join(" ")}`;
-      title.textContent = item.dataset.title || "Photo placeholder";
-      lightbox.hidden = false;
-      close.focus();
-    });
+      image.setAttribute("aria-label", item.dataset.title || "Selected gallery placeholder");
+    }
+    title.textContent = item.dataset.title || "Photo placeholder";
+    lightbox.hidden = false;
+    close.focus();
   });
 
   const closeLightbox = () => {
@@ -58,6 +69,36 @@ function initLightbox() {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !lightbox.hidden) closeLightbox();
+  });
+}
+
+function initGalleryFeed() {
+  const sections = document.querySelectorAll("[data-gallery-section]");
+  if (!sections.length) return;
+
+  const escapeHTML = (value) => String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[char]));
+
+  sections.forEach(async (grid) => {
+    const section = grid.dataset.gallerySection;
+    try {
+      const data = await HNW.apiJson(`/api/gallery/assets?section=${encodeURIComponent(section)}`);
+      if (!data.assets || data.assets.length === 0) return;
+      grid.innerHTML = data.assets.map((asset) => `
+        <button class="gallery-item gallery-photo" type="button" data-image-url="${escapeHTML(asset.image_url)}" data-title="${escapeHTML(asset.title || "Wedding photo")}" data-alt="${escapeHTML(asset.alt_text || asset.title || "Wedding photo")}">
+          <img src="${escapeHTML(asset.image_url)}" alt="${escapeHTML(asset.alt_text || asset.title || "Wedding photo")}" loading="lazy">
+          <span>${escapeHTML(asset.title || "Wedding photo")}</span>
+        </button>
+      `).join("");
+      initLightbox();
+    } catch {
+      // Keep the elegant placeholder cards if the gallery API is unavailable.
+    }
   });
 }
 
@@ -223,6 +264,7 @@ function initGuestInfoForm() {
 document.addEventListener("DOMContentLoaded", () => {
   initNavigation();
   initLightbox();
+  initGalleryFeed();
   initCountdown();
   initGuestInfoForm();
 });

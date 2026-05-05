@@ -8,6 +8,7 @@
   const linkSelect = $("#link-guest-select");
   const memberEditorList = $("#member-editor-list");
   const missingInfoList = $("#missing-info-list");
+  const photoReviewList = $("#photo-review-list");
   const loginPanel = $("#admin-login-panel");
   const loginForm = $("#admin-login-form");
   const loginError = $("#admin-login-error");
@@ -16,6 +17,7 @@
   let adminAuthenticated = false;
   let householdsCache = [];
   let rsvpsCache = [];
+  let galleryCache = [];
 
   async function apiJson(url, options = {}) {
     return HNW.apiJson(url, options);
@@ -152,12 +154,14 @@
   }
 
   async function loadData() {
-    const [guestData, rsvpData] = await Promise.all([
+    const [guestData, rsvpData, galleryData] = await Promise.all([
       apiJson("/api/admin/guests"),
-      apiJson("/api/admin/rsvps")
+      apiJson("/api/admin/rsvps"),
+      apiJson("/api/admin/gallery?status=pending")
     ]);
     householdsCache = (guestData.households || []).map(mapHousehold);
     rsvpsCache = (rsvpData.rsvps || []).map(mapRsvp);
+    galleryCache = galleryData.assets || [];
   }
 
   function getGuests() {
@@ -258,6 +262,34 @@
     `).join("");
   }
 
+  function renderPhotoReview() {
+    if (!photoReviewList) return;
+    if (!galleryCache.length) {
+      photoReviewList.innerHTML = `<div class="notice">No guest photos are waiting for review.</div>`;
+      return;
+    }
+
+    photoReviewList.innerHTML = galleryCache.map((asset) => `
+      <article class="photo-review-item" data-photo-id="${escapeHTML(asset.id)}">
+        <img src="${escapeHTML(asset.image_url)}" alt="${escapeHTML(asset.alt_text || asset.title || "Guest upload")}" loading="lazy">
+        <div class="photo-review-item__body">
+          <p class="kicker">${escapeHTML(asset.uploaded_by_name || "Guest upload")}</p>
+          <label>Title<input class="photo-title" type="text" value="${escapeHTML(asset.title || "Guest upload")}"></label>
+          <label>Alt text<input class="photo-alt" type="text" value="${escapeHTML(asset.alt_text || asset.title || "Guest uploaded wedding photo")}"></label>
+          <label>Gallery section<select class="photo-section">
+            <option value="guest_uploads"${asset.section === "guest_uploads" ? " selected" : ""}>Guest uploads</option>
+            <option value="engagement"${asset.section === "engagement" ? " selected" : ""}>Engagement</option>
+            <option value="wedding"${asset.section === "wedding" ? " selected" : ""}>Wedding</option>
+          </select></label>
+          <div class="button-row">
+            <button class="button button--primary" type="button" data-approve-photo="${escapeHTML(asset.id)}">Approve</button>
+            <button class="button button--ghost" type="button" data-delete-photo="${escapeHTML(asset.id)}">Delete</button>
+          </div>
+        </div>
+      </article>
+    `).join("");
+  }
+
   function fillForm(id) {
     const guest = getGuests().find((item) => item.id === id);
     if (!guest) return;
@@ -319,6 +351,7 @@
     renderGuests();
     renderDashboard();
     renderMissingInfo();
+    renderPhotoReview();
   }
 
   guestForm.addEventListener("submit", async (event) => {
@@ -365,6 +398,35 @@
       document.execCommand("copy");
     });
   });
+
+  if (photoReviewList) {
+    photoReviewList.addEventListener("click", async (event) => {
+      const approveId = event.target.dataset.approvePhoto;
+      const deleteId = event.target.dataset.deletePhoto;
+      const id = approveId || deleteId;
+      if (!id) return;
+
+      const item = event.target.closest(".photo-review-item");
+      if (approveId) {
+        await apiJson("/api/admin/gallery", {
+          method: "POST",
+          body: JSON.stringify({
+            id,
+            action: "approve",
+            title: item.querySelector(".photo-title").value.trim(),
+            altText: item.querySelector(".photo-alt").value.trim(),
+            section: item.querySelector(".photo-section").value
+          })
+        });
+        await renderAll();
+      }
+
+      if (deleteId && window.confirm("Delete this uploaded photo?")) {
+        await apiJson(`/api/admin/gallery?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+        await renderAll();
+      }
+    });
+  }
 
   $("#reset-guest-form").addEventListener("click", blankForm);
   $("#add-member").addEventListener("click", () => {

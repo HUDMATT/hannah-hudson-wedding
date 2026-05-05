@@ -99,4 +99,3 @@ CREATE INDEX IF NOT EXISTS idx_guests_full_name ON guests(full_name);
 CREATE INDEX IF NOT EXISTS idx_rsvps_household_id ON rsvps(household_id);
 CREATE INDEX IF NOT EXISTS idx_rsvp_attendees_rsvp_id ON rsvp_attendees(rsvp_id);
 CREATE INDEX IF NOT EXISTS idx_gallery_assets_section ON gallery_assets(section);
-

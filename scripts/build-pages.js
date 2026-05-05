@@ -13,6 +13,7 @@ const entries = [
   "gallery.html",
   "admin.html",
   "guest-info.html",
+  "upload.html",
   "_routes.json",
 ];
 

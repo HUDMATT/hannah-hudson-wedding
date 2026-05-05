@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Guest photo upload for Hudson and Hannah's wedding.">
+    <title>Upload Photos | Hudson & Hannah</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Great+Vibes&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <main id="main" class="page-main upload-page">
+      <section class="page-hero section">
+        <div class="container narrow">
+          <p class="kicker">Guest Photos</p>
+          <h1>Share your view of the celebration</h1>
+          <p>Upload a few favorite photos from the party. Photos are reviewed before they appear in the gallery.</p>
+        </div>
+      </section>
+
+      <section class="section section--cream">
+        <div class="container narrow">
+          <form class="card form-card upload-form" id="guest-upload-form">
+            <input id="upload-event-code" name="eventCode" type="hidden">
+            <div class="notice hidden" id="upload-code-warning" role="alert"></div>
+            <label>Your name, optional<input id="upload-name" name="uploadedByName" type="text" autocomplete="name" placeholder="So we know who to thank"></label>
+            <label>Caption, optional<textarea id="upload-caption" name="caption" rows="3" placeholder="A short note about these photos"></textarea></label>
+            <label>Photos<input id="upload-photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple required></label>
+            <p class="form-help">Upload up to 5 images at a time. iPhone HEIC photos are converted to JPG before upload. Each original image should be 8 MB or smaller.</p>
+            <div id="turnstile-widget" class="turnstile-wrap hidden"></div>
+            <button class="button button--primary" type="submit">Upload Photos</button>
+            <div class="notice hidden" id="upload-confirmation" role="status"></div>
+          </form>
+        </div>
+      </section>
+    </main>
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/upload.js"></script>
+  </body>
+</html>

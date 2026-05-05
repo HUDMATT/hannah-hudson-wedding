@@ -33,7 +33,7 @@
             <label>Username<input id="admin-username" name="username" type="text" autocomplete="username" required></label>
             <label>Password<input id="admin-password" name="password" type="password" autocomplete="current-password" required></label>
             <button class="button button--primary" type="submit">Unlock Admin</button>
-            <p class="form-help">Admin credentials are verified by Cloudflare Pages Functions and stored as hashed records in D1.</p>
+            <p class="form-help">Admin credentials are verified by Cloudflare</p>
             <div class="notice hidden" id="admin-login-error" role="alert"></div>
           </form>
         </div>
@@ -44,7 +44,7 @@
         <div class="container narrow">
           <p class="kicker">Admin</p>
           <h1>Wedding dashboard</h1>
-          <p>Manage guest households, RSVPs, and missing information from the Cloudflare D1 database.</p>
+          <p>Manage guest households, RSVPs, and missing information.</p>
           <button class="button button--ghost" type="button" id="admin-logout">Log Out</button>
         </div>
       </section>
@@ -66,6 +66,21 @@
               </div>
             </div>
             <div class="missing-info-list" id="missing-info-list" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--cream">
+        <div class="container">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <p class="kicker">Gallery</p>
+                <h2>Photo review</h2>
+                <p>Guest uploads stay private here until you approve them for the public gallery.</p>
+              </div>
+            </div>
+            <div class="photo-review-list" id="photo-review-list" aria-live="polite"></div>
           </div>
         </div>
       </section>
@@ -94,7 +109,6 @@
           <div class="card">
             <div class="card-header">
               <div><p class="kicker">Guest List</p><h2>Households</h2></div>
-              <button class="button button--secondary" type="button" id="seed-demo-data">Add Demo Data</button>
             </div>
             <div class="table-wrap">
               <table class="guest-table">
