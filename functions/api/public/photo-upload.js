@@ -36,28 +36,33 @@ export async function onRequestPost(context) {
 
     const id = crypto.randomUUID();
     const key = `guest-uploads/pending/${id}.${extensionFor(file)}`;
-    await bucket.put(key, file.stream(), {
-      httpMetadata: { contentType: file.type },
-      customMetadata: {
-        uploadedByName,
-        originalName: String(file.name || "")
-      }
-    });
+    try {
+      await bucket.put(key, file.stream(), {
+        httpMetadata: { contentType: file.type },
+        customMetadata: {
+          uploadedByName,
+          originalName: String(file.name || "")
+        }
+      });
 
-    await db.prepare(`
-      INSERT INTO gallery_assets (
-        id, r2_key, title, alt_text, section, sort_order, is_published,
-        uploaded_by_name, upload_source, moderation_status, content_type, file_size
-      ) VALUES (?, ?, ?, ?, 'guest_uploads', 0, 0, ?, 'guest', 'pending', ?, ?)
-    `).bind(
-      id,
-      key,
-      caption || "Guest upload",
-      caption || "Guest uploaded wedding photo",
-      uploadedByName,
-      file.type,
-      file.size
-    ).run();
+      await db.prepare(`
+        INSERT INTO gallery_assets (
+          id, r2_key, title, alt_text, section, sort_order, is_published,
+          uploaded_by_name, upload_source, moderation_status, content_type, file_size
+        ) VALUES (?, ?, ?, ?, 'guest_uploads', 0, 0, ?, 'guest', 'pending', ?, ?)
+      `).bind(
+        id,
+        key,
+        caption || "Guest upload",
+        caption || "Guest uploaded wedding photo",
+        uploadedByName,
+        file.type,
+        file.size
+      ).run();
+    } catch (err) {
+      await bucket.delete(key).catch(() => {});
+      throw err;
+    }
 
     inserted.push({ id, title: caption || "Guest upload" });
   }
