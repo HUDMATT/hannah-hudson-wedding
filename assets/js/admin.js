@@ -9,9 +9,11 @@
   const memberEditorList = $("#member-editor-list");
   const missingInfoList = $("#missing-info-list");
   const photoReviewList = $("#photo-review-list");
+  const approvedPhotoList = $("#approved-photo-list");
   let householdsCache = [];
   let rsvpsCache = [];
   let galleryCache = [];
+  let approvedGalleryCache = [];
 
   async function apiJson(url, options = {}) {
     return HNW.apiJson(url, options);
@@ -112,10 +114,11 @@
   }
 
   async function loadData() {
-    const [guestResult, rsvpResult, galleryResult] = await Promise.allSettled([
+    const [guestResult, rsvpResult, galleryResult, approvedGalleryResult] = await Promise.allSettled([
       apiJson("/api/admin/guests"),
       apiJson("/api/admin/rsvps"),
-      apiJson("/api/admin/gallery?status=pending")
+      apiJson("/api/admin/gallery?status=pending"),
+      apiJson("/api/admin/gallery?status=approved")
     ]);
 
     if (guestResult.status === "fulfilled") {
@@ -132,6 +135,12 @@
       galleryCache = galleryResult.value.assets || [];
     } else if (photoReviewList) {
       photoReviewList.innerHTML = `<div class="notice">Could not load photo review: ${escapeHTML(galleryResult.reason.message || "Unknown error")}</div>`;
+    }
+
+    if (approvedGalleryResult.status === "fulfilled") {
+      approvedGalleryCache = approvedGalleryResult.value.assets || [];
+    } else if (approvedPhotoList) {
+      approvedPhotoList.innerHTML = `<div class="notice">Could not load approved photos: ${escapeHTML(approvedGalleryResult.reason.message || "Unknown error")}</div>`;
     }
   }
 
@@ -261,6 +270,29 @@
     `).join("");
   }
 
+  function renderApprovedPhotos() {
+    if (!approvedPhotoList) return;
+    if (!approvedGalleryCache.length) {
+      approvedPhotoList.innerHTML = `<div class="notice">No photos have been approved yet.</div>`;
+      return;
+    }
+
+    approvedPhotoList.innerHTML = approvedGalleryCache.map((asset) => `
+      <article class="photo-review-item" data-photo-id="${escapeHTML(asset.id)}">
+        <img src="${escapeHTML(asset.image_url)}" alt="${escapeHTML(asset.alt_text || asset.title || "Approved gallery photo")}">
+        <div class="photo-review-item__body">
+          <p class="kicker">${escapeHTML(asset.section || "Gallery")}</p>
+          <h3>${escapeHTML(asset.title || "Approved photo")}</h3>
+          <p>${escapeHTML(asset.alt_text || "No alt text set.")}</p>
+          <p><small>Uploaded by ${escapeHTML(asset.uploaded_by_name || "unknown guest")}</small></p>
+          <div class="button-row">
+            <button class="button button--primary" type="button" data-delete-approved-photo="${escapeHTML(asset.id)}">Delete From Gallery</button>
+          </div>
+        </div>
+      </article>
+    `).join("");
+  }
+
   function fillForm(id) {
     const guest = getGuests().find((item) => item.id === id);
     if (!guest) return;
@@ -319,11 +351,13 @@
     dashboard.innerHTML = `<div class="notice">Loading dashboard...</div>`;
     missingInfoList.innerHTML = `<div class="notice">Loading missing information...</div>`;
     if (photoReviewList) photoReviewList.innerHTML = `<div class="notice">Loading photo review...</div>`;
+    if (approvedPhotoList) approvedPhotoList.innerHTML = `<div class="notice">Loading approved photos...</div>`;
     await loadData();
     renderGuests();
     renderDashboard();
     renderMissingInfo();
     if (photoReviewList && !photoReviewList.textContent.startsWith("Could not load")) renderPhotoReview();
+    if (approvedPhotoList && !approvedPhotoList.textContent.startsWith("Could not load")) renderApprovedPhotos();
   }
 
   guestForm.addEventListener("submit", async (event) => {
@@ -405,6 +439,24 @@
         await apiJson(`/api/admin/gallery?id=${encodeURIComponent(id)}`, { method: "DELETE" });
         await renderAll();
       }
+    });
+  }
+
+  if (approvedPhotoList) {
+    approvedPhotoList.addEventListener("error", (event) => {
+      if (!event.target.matches(".photo-review-item img")) return;
+      event.target.closest(".photo-review-item").insertAdjacentHTML(
+        "beforeend",
+        `<div class="notice">Preview image could not load. Open <a href="${escapeHTML(event.target.src)}" target="_blank" rel="noopener">the image URL</a> to inspect the response.</div>`
+      );
+    }, true);
+
+    approvedPhotoList.addEventListener("click", async (event) => {
+      const id = event.target.dataset.deleteApprovedPhoto;
+      if (!id) return;
+      if (!window.confirm("Delete this approved photo from the gallery and R2 storage?")) return;
+      await apiJson(`/api/admin/gallery?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      await renderAll();
     });
   }
 
