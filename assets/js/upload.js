@@ -107,8 +107,8 @@
       setMessage("Please choose at least one photo.", true);
       return;
     }
-    if (files.length > 5) {
-      setMessage("Please upload 5 images or fewer at a time.", true);
+    if (files.length > 10) {
+      setMessage("Please upload 10 images or fewer at a time.", true);
       return;
     }
     if (files.some((file) => file.size > 8 * 1024 * 1024)) {

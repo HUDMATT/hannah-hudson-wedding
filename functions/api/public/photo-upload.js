@@ -1,7 +1,7 @@
 import { error, json, originError, requireBucket, requireDb, sameOriginOrNoOrigin } from "../../../server/http.js";
 import { verifyTurnstile } from "../../../server/turnstile.js";
 
-const MAX_FILES = 5;
+const MAX_FILES = 10;
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 function extensionFor(file) {
   return "jpg";
