@@ -242,7 +242,7 @@
 
     photoReviewList.innerHTML = galleryCache.map((asset) => `
       <article class="photo-review-item" data-photo-id="${escapeHTML(asset.id)}">
-        <img src="${escapeHTML(asset.image_url)}" alt="${escapeHTML(asset.alt_text || asset.title || "Guest upload")}" loading="lazy">
+        <img src="${escapeHTML(asset.image_url)}" alt="${escapeHTML(asset.alt_text || asset.title || "Guest upload")}">
         <div class="photo-review-item__body">
           <p class="kicker">${escapeHTML(asset.uploaded_by_name || "Guest upload")}</p>
           <label>Title<input class="photo-title" type="text" value="${escapeHTML(asset.title || "Guest upload")}"></label>
@@ -372,6 +372,14 @@
   });
 
   if (photoReviewList) {
+    photoReviewList.addEventListener("error", (event) => {
+      if (!event.target.matches(".photo-review-item img")) return;
+      event.target.closest(".photo-review-item").insertAdjacentHTML(
+        "beforeend",
+        `<div class="notice">Preview image could not load. Open <a href="${escapeHTML(event.target.src)}" target="_blank" rel="noopener">the image URL</a> to inspect the response.</div>`
+      );
+    }, true);
+
     photoReviewList.addEventListener("click", async (event) => {
       const approveId = event.target.dataset.approvePhoto;
       const deleteId = event.target.dataset.deletePhoto;
@@ -420,65 +428,6 @@
       return;
     }
     event.target.closest(".member-row").remove();
-  });
-
-  $("#seed-demo-data").addEventListener("click", async () => {
-    const demoHouseholds = [
-      {
-        id: "demo-fall-101",
-        householdName: "Martini Family",
-        primaryName: "Lena Martini",
-        phone: "555-0101",
-        email: "lena@example.com",
-        address: "123 Placeholder Lane, City, ST",
-        allowedPlusOnes: 2,
-        tags: "family, rehearsal",
-        inviteCode: "FALL101",
-        guests: [
-          { name: "Lena Martini", type: "adult" },
-          { name: "Marco Martini", type: "adult" },
-          { name: "Sofia Martini", type: "child" }
-        ]
-      },
-      {
-        id: "demo-fall-102",
-        householdName: "Matthews Friends",
-        primaryName: "Jordan Blake",
-        phone: "555-0102",
-        email: "jordan@example.com",
-        address: "456 Sample Street, City, ST",
-        allowedPlusOnes: 1,
-        tags: "friends",
-        inviteCode: "FALL102",
-        guests: [
-          { name: "Jordan Blake", type: "adult" },
-          { name: "Taylor Reed", type: "adult" }
-        ]
-      },
-      {
-        id: "demo-fall-103",
-        householdName: "Avery Household",
-        primaryName: "Morgan Avery",
-        phone: "555-0103",
-        email: "morgan@example.com",
-        address: "789 Autumn Road, City, ST",
-        allowedPlusOnes: 0,
-        tags: "coworkers",
-        inviteCode: "FALL103",
-        guests: [
-          { name: "Morgan Avery", type: "adult" }
-        ]
-      }
-    ];
-
-    if (!window.confirm("Add demo households to D1? Existing households with the same IDs will not be reset.")) return;
-    for (const household of demoHouseholds) {
-      await apiJson("/api/admin/guests", {
-        method: "POST",
-        body: JSON.stringify(household)
-      });
-    }
-    await renderAll();
   });
 
   $("#generate-link").addEventListener("click", () => {
@@ -540,9 +489,13 @@
   });
 
   blankForm();
-  renderAll();
+  renderAll().catch((err) => {
+    if (photoReviewList) {
+      photoReviewList.innerHTML = `<div class="notice">Admin data could not load: ${escapeHTML(err.message || "Unknown error")}</div>`;
+    }
+  });
 
   window.addEventListener("focus", () => {
-    renderAll();
+    renderAll().catch(() => {});
   });
 })();
