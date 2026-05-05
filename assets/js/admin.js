@@ -112,14 +112,27 @@
   }
 
   async function loadData() {
-    const [guestData, rsvpData, galleryData] = await Promise.all([
+    const [guestResult, rsvpResult, galleryResult] = await Promise.allSettled([
       apiJson("/api/admin/guests"),
       apiJson("/api/admin/rsvps"),
       apiJson("/api/admin/gallery?status=pending")
     ]);
-    householdsCache = (guestData.households || []).map(mapHousehold);
-    rsvpsCache = (rsvpData.rsvps || []).map(mapRsvp);
-    galleryCache = galleryData.assets || [];
+
+    if (guestResult.status === "fulfilled") {
+      householdsCache = (guestResult.value.households || []).map(mapHousehold);
+    } else {
+      tableBody.innerHTML = `<tr><td colspan="5">Could not load guests: ${escapeHTML(guestResult.reason.message || "Unknown error")}</td></tr>`;
+    }
+
+    if (rsvpResult.status === "fulfilled") {
+      rsvpsCache = (rsvpResult.value.rsvps || []).map(mapRsvp);
+    }
+
+    if (galleryResult.status === "fulfilled") {
+      galleryCache = galleryResult.value.assets || [];
+    } else if (photoReviewList) {
+      photoReviewList.innerHTML = `<div class="notice">Could not load photo review: ${escapeHTML(galleryResult.reason.message || "Unknown error")}</div>`;
+    }
   }
 
   function getGuests() {
@@ -305,11 +318,12 @@
   async function renderAll() {
     dashboard.innerHTML = `<div class="notice">Loading dashboard...</div>`;
     missingInfoList.innerHTML = `<div class="notice">Loading missing information...</div>`;
+    if (photoReviewList) photoReviewList.innerHTML = `<div class="notice">Loading photo review...</div>`;
     await loadData();
     renderGuests();
     renderDashboard();
     renderMissingInfo();
-    renderPhotoReview();
+    if (photoReviewList && !photoReviewList.textContent.startsWith("Could not load")) renderPhotoReview();
   }
 
   guestForm.addEventListener("submit", async (event) => {
