@@ -1,4 +1,3 @@
-import { requireAdmin } from "../../../server/auth.js";
+import { requireAccess } from "../../../server/access.js";
 
-export const onRequest = [requireAdmin];
-
+export const onRequest = [requireAccess];

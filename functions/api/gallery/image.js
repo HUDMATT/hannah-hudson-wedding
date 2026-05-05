@@ -1,4 +1,3 @@
-import { getAuthenticatedAdmin } from "../../../server/auth.js";
 import { error, requireBucket, requireDb } from "../../../server/http.js";
 
 export async function onRequestGet(context) {
@@ -18,8 +17,7 @@ export async function onRequestGet(context) {
   if (!asset) return error("Image not found.", 404);
 
   if (!(asset.is_published === 1 && asset.moderation_status === "approved")) {
-    const admin = await getAuthenticatedAdmin(db, context.request);
-    if (!admin) return error("Image not found.", 404);
+    return error("Image not found.", 404);
   }
 
   const object = await bucket.get(asset.r2_key);

@@ -1,10 +1,10 @@
-import { getAuthenticatedAdmin } from "../../../server/auth.js";
+import { getAccessUser } from "../../../server/access.js";
 import { error, json, originError, readJson, requireBucket, requireDb, sameOriginOrNoOrigin } from "../../../server/http.js";
 
 function publicAsset(asset) {
   return {
     ...asset,
-    image_url: `/api/gallery/image?id=${encodeURIComponent(asset.id)}`
+    image_url: `/api/admin/gallery-image?id=${encodeURIComponent(asset.id)}`
   };
 }
 
@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
 export async function onRequestPost(context) {
   const db = requireDb(context.env);
   if (!sameOriginOrNoOrigin(context.request)) return originError();
-  const admin = await getAuthenticatedAdmin(db, context.request);
+  const admin = await getAccessUser(context.env, context.request);
   if (!admin) return error("Unauthorized", 401);
 
   const body = await readJson(context.request);
@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
           approved_at = CURRENT_TIMESTAMP,
           approved_by = ?
       WHERE id = ?
-    `).bind(body.section || "guest_uploads", body.title || "", body.altText || "", admin.username, body.id).run();
+    `).bind(body.section || "guest_uploads", body.title || "", body.altText || "", admin.email || admin.name, body.id).run();
     return json({ ok: true });
   }
 
