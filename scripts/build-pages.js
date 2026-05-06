@@ -14,6 +14,8 @@ const entries = [
   "admin.html",
   "guest-info.html",
   "upload.html",
+  "favicon.ico",
+  "icon.svg",
   "_routes.json",
 ];
 
