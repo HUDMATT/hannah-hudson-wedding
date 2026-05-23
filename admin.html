@@ -42,21 +42,22 @@
 
       <section class="section section--beige">
         <div class="container">
-          <div class="card">
-            <div class="card-header">
+          <details class="card missing-info-panel">
+            <summary class="card-header missing-info-panel__summary">
               <div>
                 <p class="kicker">Guest Info</p>
                 <h2>Missing information</h2>
                 <p>Households appear here when they are missing a phone number, email, or mailing address.</p>
               </div>
-            </div>
+              <span class="missing-info-panel__toggle">View list</span>
+            </summary>
             <div class="missing-info-list" id="missing-info-list" aria-live="polite"></div>
-          </div>
+          </details>
         </div>
       </section>
 
       <section class="section">
-        <div class="container admin-layout">
+        <div class="container guest-management">
           <form class="card form-card" id="guest-form">
             <h2 id="guest-form-title">Add guest</h2>
             <input type="hidden" id="guest-id">
@@ -76,7 +77,7 @@
             </div>
           </form>
 
-          <div class="card">
+          <div class="card household-card">
             <div class="card-header">
               <div><p class="kicker">Guest List</p><h2>Households</h2></div>
             </div>

@@ -338,6 +338,10 @@ p { margin: 0 0 1rem; }
 .copyright { font-size: 0.85rem; margin: 2rem 1rem 0; }
 
 .form-card { display: grid; gap: 1rem; }
+.guest-management {
+  display: grid;
+  gap: 1.25rem;
+}
 label, legend { color: var(--color-navy); font-weight: 700; }
 input, textarea, select {
   background: white;
@@ -478,6 +482,39 @@ th { color: var(--color-evergreen); font-size: 0.78rem; letter-spacing: 0.08em; 
 .metric { background: white; }
 .metric strong { color: var(--color-navy); display: block; font-family: var(--font-heading); font-size: 2.5rem; line-height: 1; }
 .summary-list { margin: 0; padding-left: 1rem; }
+.missing-info-panel__summary {
+  cursor: pointer;
+  list-style: none;
+}
+.missing-info-panel__summary::-webkit-details-marker {
+  display: none;
+}
+.missing-info-panel__toggle {
+  align-items: center;
+  color: var(--color-terracotta);
+  display: inline-flex;
+  font-weight: 800;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.missing-info-panel__toggle::after {
+  border-bottom: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  content: "";
+  height: 0.55rem;
+  transform: rotate(45deg);
+  transition: transform 180ms ease;
+  width: 0.55rem;
+}
+.missing-info-panel[open] .missing-info-panel__toggle::after {
+  transform: rotate(225deg);
+}
+.missing-info-panel[open] .missing-info-panel__toggle {
+  color: var(--color-evergreen);
+}
+.missing-info-panel[open] .missing-info-list {
+  margin-top: 1rem;
+}
 .missing-info-list {
   display: grid;
   gap: 0.85rem;
