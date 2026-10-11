@@ -4,6 +4,7 @@
 
   const $ = (selector) => document.querySelector(selector);
   const tableBody = $("#guest-table-body");
+  const guestSearchForm = $("#guest-search-form");
   const guestSearch = $("#guest-search");
   const dashboard = $("#rsvp-dashboard");
   const linkSelect = $("#link-guest-select");
@@ -410,6 +411,10 @@
   });
 
   guestSearch.addEventListener("input", renderGuests);
+  guestSearchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    renderGuests();
+  });
 
   missingInfoList.addEventListener("click", (event) => {
     const editId = event.target.dataset.edit;

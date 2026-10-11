@@ -81,7 +81,10 @@
             <div class="card-header">
               <div><p class="kicker">Guest List</p><h2>Households</h2></div>
             </div>
-            <label for="guest-search">Search households<input id="guest-search" type="search" placeholder="Name, invite code, email, tag..."></label>
+            <form class="inline-form" id="guest-search-form">
+              <label for="guest-search">Search households<input id="guest-search" type="search" placeholder="Name, invite code, email, tag..." autocomplete="off"></label>
+              <button class="button button--secondary" type="submit">Search</button>
+            </form>
             <div class="table-wrap">
               <table class="guest-table">
                 <thead><tr><th>Household</th><th>Contact</th><th>Plus Ones</th><th>Tags</th><th>Actions</th></tr></thead>
