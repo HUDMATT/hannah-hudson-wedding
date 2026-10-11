@@ -214,6 +214,7 @@
     const declined = rsvps.filter((item) => item.status === "declined");
     const invitedMembers = guests.flatMap(getMembers);
     const invitedTotal = invitedMembers.length + guests.reduce((sum, guest) => sum + Number(guest.plusOnes || 0), 0);
+    const householdsInvited = guests.length;
     const attendingMembers = attending.flatMap((item) => item.attendingMembers || []);
     const attendingPlusOnes = attending.filter((item) => item.plusOne && item.plusOne.attending);
     const adultInvited = invitedMembers.filter((member) => member.type !== "child").length;
@@ -224,6 +225,7 @@
     const respondedHouseholdIds = new Set(rsvps.map((rsvp) => rsvp.householdId));
 
     dashboard.innerHTML = `
+      <article class="card metric"><span class="card__label">Households invited</span><strong>${householdsInvited}</strong></article>
       <article class="card metric"><span class="card__label">Total invited</span><strong>${invitedTotal}</strong></article>
       <article class="card metric"><span class="card__label">Attending</span><strong>${attending.reduce((sum, item) => sum + Number(item.count || 0), 0)}</strong></article>
       <article class="card metric"><span class="card__label">Declined</span><strong>${declined.length}</strong></article>
