@@ -4,6 +4,7 @@
 
   const $ = (selector) => document.querySelector(selector);
   const tableBody = $("#guest-table-body");
+  const guestSearch = $("#guest-search");
   const dashboard = $("#rsvp-dashboard");
   const linkSelect = $("#link-guest-select");
   const memberEditorList = $("#member-editor-list");
@@ -168,20 +169,39 @@
       return;
     }
 
-    tableBody.innerHTML = guests.map((guest) => {
-      const members = getMembers(guest);
-      const adultCount = members.filter((member) => member.type !== "child").length;
-      const childCount = members.filter((member) => member.type === "child").length;
-      return `
-      <tr>
-        <td data-label="Household"><strong>${escapeHTML(guest.household)}</strong><br>${escapeHTML(guest.name)}<br><small>${escapeHTML(guest.code)}</small></td>
-        <td data-label="Contact">${escapeHTML(guest.phone || "No phone")}<br>${escapeHTML(guest.email || "No email")}<br><small>${escapeHTML(guest.address || "No address")}</small></td>
-        <td data-label="Plus Ones">${guest.plusOnes || 0}<br><small>${adultCount} adult${adultCount === 1 ? "" : "s"} · ${childCount} child${childCount === 1 ? "" : "ren"}</small></td>
-        <td data-label="Tags">${escapeHTML(guest.tags || "")}<br><small>${members.map((member) => `${escapeHTML(member.name)} (${member.type})`).join(", ")}</small></td>
-        <td data-label="Actions"><div class="table-actions"><button class="button button--ghost" type="button" data-edit="${escapeHTML(guest.id)}">Edit</button><button class="button button--primary" type="button" data-delete="${escapeHTML(guest.id)}">Delete</button></div></td>
-      </tr>
-    `;
-    }).join("");
+    const query = guestSearch.value.trim().toLocaleLowerCase();
+    const visibleGuests = guests.filter((guest) => {
+      const searchableText = [
+        guest.household,
+        guest.name,
+        guest.code,
+        guest.phone,
+        guest.email,
+        guest.address,
+        guest.tags,
+        ...getMembers(guest).map((member) => member.name)
+      ].join(" ").toLocaleLowerCase();
+      return searchableText.includes(query);
+    });
+
+    if (!visibleGuests.length) {
+      tableBody.innerHTML = `<tr><td colspan="5">No households match "${escapeHTML(guestSearch.value.trim())}".</td></tr>`;
+    } else {
+      tableBody.innerHTML = visibleGuests.map((guest) => {
+        const members = getMembers(guest);
+        const adultCount = members.filter((member) => member.type !== "child").length;
+        const childCount = members.filter((member) => member.type === "child").length;
+        return `
+        <tr>
+          <td data-label="Household"><strong>${escapeHTML(guest.household)}</strong><br>${escapeHTML(guest.name)}<br><small>${escapeHTML(guest.code)}</small></td>
+          <td data-label="Contact">${escapeHTML(guest.phone || "No phone")}<br>${escapeHTML(guest.email || "No email")}<br><small>${escapeHTML(guest.address || "No address")}</small></td>
+          <td data-label="Plus Ones">${guest.plusOnes || 0}<br><small>${adultCount} adult${adultCount === 1 ? "" : "s"} · ${childCount} child${childCount === 1 ? "" : "ren"}</small></td>
+          <td data-label="Tags">${escapeHTML(guest.tags || "")}<br><small>${members.map((member) => `${escapeHTML(member.name)} (${member.type})`).join(", ")}</small></td>
+          <td data-label="Actions"><div class="table-actions"><button class="button button--ghost" type="button" data-edit="${escapeHTML(guest.id)}">Edit</button><button class="button button--primary" type="button" data-delete="${escapeHTML(guest.id)}">Delete</button></div></td>
+        </tr>
+      `;
+      }).join("");
+    }
 
     linkSelect.innerHTML = guests.map((guest) => `<option value="${escapeHTML(guest.id)}">${escapeHTML(guest.household)} (${escapeHTML(guest.code)})</option>`).join("");
   }
@@ -388,6 +408,8 @@
       await deleteGuest(deleteId);
     }
   });
+
+  guestSearch.addEventListener("input", renderGuests);
 
   missingInfoList.addEventListener("click", (event) => {
     const editId = event.target.dataset.edit;
